@@ -1,0 +1,7 @@
+[
+  "braggy/backend/test/test_filebrowser.py::test_root[pyloop]",
+  "braggy/backend/test/test_filebrowser.py::test_list_dir[pyloop]",
+  "braggy/backend/test/test_filebrowser.py::test_init[pyloop]",
+  "braggy/backend/test/test_imageview.py::test_get_image[pyloop]",
+  "braggy/backend/test/test_imageview.py::test_get_image_header[pyloop]"
+]

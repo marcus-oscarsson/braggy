@@ -13,6 +13,6 @@ install:
   
 script:
   - pylint --rcfile=.pylintrc-shush braggy/backend/
-  - pytest --cov-report term --cov=braggy/backend
+  - pytest -v --cov-report term --cov=braggy/backend
 after_success:
   - codecov

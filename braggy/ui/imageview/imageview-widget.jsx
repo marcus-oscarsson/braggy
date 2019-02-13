@@ -32,7 +32,7 @@ class ImageView extends React.Component {
 
     this.canvasContainerRef = React.createRef();
     this.infoDisplayDivRef = React.createRef();
-    this.pixiapp = new PIXI.Application({ transparent: true, forceCanvas: true });
+    this.pixiapp = new PIXI.Application({ transparent: true });
     this.currentImg = null;
     this.container = null;
     this.scale = 1;
@@ -49,8 +49,14 @@ class ImageView extends React.Component {
     this.pixiapp.renderer.resize(w, h);
   }
 
-  componentDidUpdate() {
-    window.requestAnimationFrame(() => (this.loadImageData()));
+  componentDidUpdate(prevProps) {
+    const { currentImage } = this.props;
+    const prevImage = prevProps.currentImage;
+
+    // Only load image data if image changed.
+    if (currentImage !== prevImage) {
+      window.requestAnimationFrame(() => (this.loadImageData()));
+    }
   }
 
   componentWillUnmount() {
@@ -93,6 +99,9 @@ class ImageView extends React.Component {
   }
 
   onMouseMove(event) {
+    const { images, currentImage } = this.props;
+    const imgData = images[currentImage];
+
     if (this.currentImg.dragging) {
       const newPosition = event.data.getLocalPosition(this.currentImg.parent);
       this.currentImg.x = newPosition.x - this.currentImg.dragStartOx;
@@ -102,38 +111,39 @@ class ImageView extends React.Component {
     }
 
     if (this.mouseOverEvent) {
-      const globalPos = event.data.getLocalPosition(this.currentImg.parent);
-      const ctx = this.pixiapp.view.getContext('2d');
       const pos = event.data.getLocalPosition(this.currentImg);
       const x = Math.floor((this.currentImg.width / this.currentImg.scale.x) / 2 + pos.x);
       const y = Math.floor((this.currentImg.height / this.currentImg.scale.y) / 2 + pos.y);
+      const w = this.currentImg.width / this.currentImg.scale.x;
+      const grey = imgData.raw ? imgData.raw[Math.floor(y * w + x)] : '?';
 
-      const pixels = ctx.getImageData(globalPos.x, globalPos.y, 1, 1).data;
-      const grey = 255 - (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]);
-
-      this.infoDisplayDivRef.current.innerHTML = `X:${x} Y:${y} Intensity: ${grey.toFixed(0)}`;
+      this.infoDisplayDivRef.current.innerHTML = `X:${x} Y:${y} Intensity: ${grey}`;
     }
   }
 
-  loadImageData() {
-    const { images, currentImage, autoScale } = this.props;
-    const imgData = images[currentImage];
-
-    const loaded = imgData.data;
-    const { pixiapp } = this;
-
-    pixiapp.stage.removeChildren();
-
-    const texture = PIXI.Texture.from(loaded);
-    const img = new PIXI.Sprite(texture);
-    const ratio = pixiapp.screen.height / img.height;
-
-    img.interactive = true;
+  imgLoaded(sprite, _img) {
+    const img = _img;
+    const { autoScale } = this.props;
+    const ratio = this.pixiapp.screen.height / _img.height;
 
     if (autoScale) {
       img.scale.x = ratio;
       img.scale.y = ratio;
     }
+  }
+
+  loadImageData() {
+    const { images, currentImage } = this.props;
+    const imgData = images[currentImage];
+
+    const { pixiapp } = this;
+
+    pixiapp.stage.removeChildren();
+
+    const img = new PIXI.Sprite.from(imgData.data);
+    img.texture.baseTexture.on('loaded', e => (this.imgLoaded(e, img)));
+
+    img.interactive = true;
 
     img.anchor.set(0.5);
     img.x = pixiapp.screen.width / 2;
@@ -149,6 +159,7 @@ class ImageView extends React.Component {
     pixiCircle.endFill();
     this.container.addChild(pixiCircle);
 
+    img.on('added', this.onAdded);
     img.on('pointerover', this.onMouseOver);
     img.on('pointerout', this.onMouseOut);
 

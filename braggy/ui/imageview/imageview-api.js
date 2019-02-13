@@ -6,6 +6,7 @@ export const ADD_IMAGE = 'imageview/ADD_IMAGE';
 export const SET_CURRENT_IMAGE = 'imageview/SET_CURRENT_IMAGE';
 export const SET_AND_ADD_IMAGE = 'imageview/SET_AND_ADD_IMAGE';
 export const SET_OPTION = 'imageview/SET_OPTION';
+export const SET_RAW_DATA = 'imageview/SET_RAW_DATA';
 
 const API_URL = '/api/imageview';
 
@@ -35,7 +36,8 @@ export default (state = initialState, action) => {
           ...state.images,
           [action.path]: {
             data: action.data,
-            hdr: action.hdr
+            hdr: action.hdr,
+            raw: null
           }
         },
         currentImage: action.path
@@ -47,7 +49,19 @@ export default (state = initialState, action) => {
           ...state.images,
           [action.path]: {
             data: action.data,
-            hdr: action.hdr
+            hdr: action.hdr,
+            raw: null
+          }
+        }
+      };
+    case SET_RAW_DATA:
+      return {
+        ...state,
+        images: {
+          ...state.images,
+          [action.path]: {
+            ...state.images[action.path],
+            raw: action.data
           }
         }
       };
@@ -112,6 +126,16 @@ export function setCurrentImage(path) {
   };
 }
 
+export function setRawData(path, data) {
+  return (dispatch) => {
+    dispatch({
+      type: SET_RAW_DATA,
+      path,
+      data
+    });
+  };
+}
+
 
 export function fetchImageSuccess(data) {
   return (dispatch) => {
@@ -123,36 +147,36 @@ export function fetchImageSuccess(data) {
 // REST API
 export function fetchImageRequest(path) {
   return (dispatch, getState) => {
-    const { images, options } = getState().imageView;
+    const { images } = getState().imageView;
 
     if (!(path in images)) {
-      const p1 = axios.post(`${API_URL}/get-image`, { path, compress: options.compress }, { responseType: 'blob' })
-        .then(response => ({ path, data: response.data }))
+      axios.post(`${API_URL}/preload`, { path })
+        .then((response) => {
+          const img = `${API_URL}/image?path=${window.encodeURIComponent(path)}`;
+          dispatch(fetchImageSuccess({ path, data: img, hdr: response.data }));
+        })
+        .then(() => {
+          axios.post(`${API_URL}/raw`, { path }, { responseType: 'blob' })
+            .then((response) => {
+              let data = null;
+
+              const fileReader = new FileReader();
+
+              fileReader.onload = (event) => {
+                data = new Int32Array(event.target.result);
+                dispatch(setRawData(path, data));
+                return data;
+              };
+
+              fileReader.readAsArrayBuffer(response.data);
+            })
+            .catch((error) => {
+              throw (error);
+            });
+        })
         .catch((error) => {
           throw (error);
         });
-
-      const p2 = axios.post(`${API_URL}/get-image-header`, { path })
-        .then(response => ({ path, data: response.data }))
-        .catch((error) => {
-          throw (error);
-        });
-
-      const result = Promise.all([p1, p2]);
-
-      result.then((data) => {
-        const img = new Image();
-
-        img.onload = () => {
-          dispatch(fetchImageSuccess({
-            path: data[0].path,
-            data: img,
-            hdr: data[1].data
-          }));
-        };
-
-        img.src = URL.createObjectURL(data[0].data);
-      });
     } else {
       dispatch(setCurrentImage(path));
     }

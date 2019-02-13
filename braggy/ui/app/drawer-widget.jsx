@@ -67,7 +67,6 @@ class ResponsiveDrawer extends React.Component {
     const {
       classes,
       fetchImageRequest,
-      compress,
       autoScale,
       aggDownload,
       setOption,
@@ -79,12 +78,6 @@ class ResponsiveDrawer extends React.Component {
         <div className={classes.optionsForm}>
           <FormLabel component="legend">Options</FormLabel>
           <FormGroup>
-            <FormControlLabel
-              control={(<Checkbox color="primary" />)}
-              label="Compress image"
-              checked={compress}
-              onChange={(e) => { setOption('compress', e.target.checked); }}
-            />
             <FormControlLabel
               control={(<Checkbox color="primary" />)}
               label="Auto scale"

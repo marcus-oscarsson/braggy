@@ -1,9 +1,8 @@
 import React from 'react';
 import { render } from 'react-dom';
 import { Provider } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
 import { ConnectedRouter } from 'connected-react-router';
-import store, { history, persistor } from './app/redux-store';
+import store, { history } from './app/redux-store';
 import App from './app/main-widget';
 import * as serviceWorker from './serviceWorker';
 
@@ -17,11 +16,9 @@ const target = document.querySelector('#root');
 
 render(
   <Provider store={store}>
-    <PersistGate loading={null} persistor={persistor}>
-      <ConnectedRouter history={history}>
-        <App />
-      </ConnectedRouter>
-    </PersistGate>
+    <ConnectedRouter history={history}>
+      <App />
+    </ConnectedRouter>
   </Provider>,
   target
 );

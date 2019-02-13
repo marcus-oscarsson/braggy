@@ -2,10 +2,6 @@
 
 import { createStore, applyMiddleware, compose } from 'redux';
 import { routerMiddleware } from 'connected-react-router';
-import { persistStore, persistReducer } from 'redux-persist';
-// defaults to localStorage for web and AsyncStorage for react-native
-import storage from 'redux-persist/lib/storage';
-import autoMergeLevel2 from 'redux-persist/lib/stateReconciler/autoMergeLevel2';
 import logger from 'redux-logger';
 import thunk from 'redux-thunk';
 import createHistory from 'history/createBrowserHistory';
@@ -36,18 +32,11 @@ const composedEnhancers = compose(
   ...enhancers
 );
 
-const persistConfig = {
-  key: 'root',
-  storage,
-  stateReconciler: autoMergeLevel2
-};
 
 const store = createStore(
-  persistReducer(persistConfig, createRootReducer(history)),
+  createRootReducer(history),
   initialState,
   composedEnhancers
 );
-
-export const persistor = persistStore(store);
 
 export default store;

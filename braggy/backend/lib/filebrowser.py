@@ -39,5 +39,5 @@ def list_dir(path="."):
 
 
 def listdir_shell(path, *lsargs):
-    t = run(('ls', path) + lsargs, stdout=PIPE, close_fds=True)
+    t = run(('ls', path) + lsargs, stdout=PIPE, close_fds=True, shell=True)
     return [p.decode("utf-8") for p in t.stdout.splitlines()]

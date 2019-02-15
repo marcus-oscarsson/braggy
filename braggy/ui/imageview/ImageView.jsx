@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import { withStyles } from '@material-ui/core/styles';
 import * as PIXI from 'pixi.js';
 
-// import bgGrid from '../img/bg-grid.svg';
+import resolutionRings from './imageviewlib';
 
 import Worker from './image-download.worker';
 
@@ -135,6 +135,7 @@ class ImageView extends React.Component {
   loadImageData() {
     const { images, currentImage } = this.props;
     const imgData = images[currentImage];
+    const hdr = imgData.hdr.braggy_hdr;
 
     const { pixiapp } = this;
 
@@ -153,11 +154,35 @@ class ImageView extends React.Component {
     this.container.x = img.x;
     this.container.y = img.y;
 
-    const pixiCircle = new PIXI.Graphics();
-    pixiCircle.lineStyle(2, 0xFF00FF);
-    pixiCircle.drawCircle(0, 0, 10);
-    pixiCircle.endFill();
-    this.container.addChild(pixiCircle);
+    if (hdr.beam_ocx !== undefined) {
+      const pixiCircle = new PIXI.Graphics();
+      pixiCircle.lineStyle(1, 0xFF00FF, 0.2);
+      pixiCircle.drawCircle(hdr.beam_ocx, hdr.beam_ocy, 3);
+      pixiCircle.endFill();
+      this.container.addChild(pixiCircle);
+
+      const rings = resolutionRings(hdr.detector_radius, hdr.detector_distance, hdr.wavelength);
+
+      rings.forEach((ring) => {
+        const rx = ring.r * hdr.pxxpm;
+        pixiCircle.drawCircle(hdr.beam_ocx, hdr.beam_ocy, rx / 2);
+
+        const t = new PIXI.Text(`${ring.res.toFixed(2).toString()} A`,
+          {
+            fontFamily: 'Arial',
+            fontSize: 45,
+            fill: 0xff1010,
+            align: 'center'
+          });
+
+        t.x = hdr.beam_ocx;
+        t.y = hdr.beam_ocy + rx / 2 + 20;
+        t.anchor.set(0.5);
+        t.alpha = 0.7;
+
+        this.container.addChild(t);
+      });
+    }
 
     img.on('added', this.onAdded);
     img.on('pointerover', this.onMouseOver);

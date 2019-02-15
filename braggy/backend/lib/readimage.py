@@ -3,6 +3,8 @@
 
 import os
 import io
+import math
+import logging
 
 from collections import OrderedDict
 from PIL import Image, ImageOps
@@ -29,6 +31,7 @@ class ImageCache():
     def get(path):
         return ImageCache.IMAGES[path]
 
+    @staticmethod
     def incache(path):
         return path in ImageCache.IMAGES
 
@@ -58,26 +61,71 @@ def _get_image_data(path, fmt, color_space):
     raw_data = cbf_image.data.tobytes()
     img_data = byte_stream.getvalue()
     img_hdr = cbf_image.header
-    img_hdr['parsed_ext_hdr'] = {}
 
-    _ext_hdr = img_hdr.get("_array_data.header_contents", []).split('\r\n')
+    parsed_ext_hdr, braggy_hdr = _parse_header(img_hdr, cbf_image.dim1, cbf_image.dim2)
+
+    img_hdr['parsed_ext_hdr'] = parsed_ext_hdr
+    img_hdr['braggy_hdr'] = braggy_hdr
+
+    return img_hdr, raw_data, img_data
+
+
+def _parse_header(hdr, width, height):
+    parsed_ext_hdr = {}
+    braggy_hdr = {}
+
+    _ext_hdr = hdr.get("_array_data.header_contents", []).split('\r\n')
 
     for data in _ext_hdr:
         key_value = data.strip('#').strip().split()
 
         key = key_value[0].strip(':').strip()
         value = ' '.join(key_value[1:])
-        img_hdr['parsed_ext_hdr'][key] = value
+        parsed_ext_hdr[key] = value
+    try:
+        w = float(parsed_ext_hdr.get('Wavelength', '0').strip('A '))
+        d = float(parsed_ext_hdr.get('Detector_distance', '0').strip('m '))
 
-    return img_hdr, raw_data, img_data
+        bcx, bcy = parsed_ext_hdr['Beam_xy'].split(',')
+        bcx, bcy = float(bcx.strip('pixels() ')), float(bcy.strip('pixels() '))
+
+        px_size_x, px_size_y = parsed_ext_hdr.get('Pixel_size', '0').split('x')
+        px_size_x, px_size_y = float(px_size_x.strip(
+            'm ')), float(px_size_y.strip('m '))
+
+        dr = math.sqrt((px_size_x * width)**2 +
+                       (px_size_y * height)**2) / 2
+
+        braggy_hdr = {
+            'wavelength': w,
+            'detector_distance': d,
+            'beam_cx': bcx,
+            'beam_cy': bcy,
+            'beam_ocx': (width / 2) - bcx,
+            'beam_ocy': (height / 2) - bcx,
+            'detector_radius': dr,
+            'pixel_size_x': px_size_x,
+            'pixel_size_y': px_size_y,
+            'img_width': width,
+            'img_height': height,
+            'pxxpm': 1 / px_size_x,
+            'pxypm': 1 / px_size_y
+        }
+    except (KeyError, IndexError):
+        logging.info("Could not create Braggy header from CBF header")
+
+    return parsed_ext_hdr, braggy_hdr
 
 
 def get_image_hdr(path):
     _root, ext = os.path.splitext(path)
-    header = None
+    hdr = None
 
     if ext.lower() == '.cbf':
-        cbf_image = cbfimage(fname=path)
-        header = cbf_image.header
+        cbf_img = cbfimage(fname=path)
+        hdr = cbf_img.header
+        parsed_ext_hdr, braggy_hdr = _parse_header(hdr, cbf_img.dim1, cbf_img.dim2)
+        hdr['parsed_ext_hdr'] = parsed_ext_hdr
+        hdr['braggy_hdr'] = braggy_hdr
 
-    return header
+    return hdr

@@ -3,7 +3,7 @@ import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ConnectedRouter } from 'connected-react-router';
 import store, { history } from './app/redux-store';
-import App from './app/main-widget';
+import Main from './app/Main';
 import * as serviceWorker from './serviceWorker';
 
 import { initFileBrowserRequest } from './file-browser/file-browser-api';
@@ -17,7 +17,7 @@ const target = document.querySelector('#root');
 render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
-      <App />
+      <Main />
     </ConnectedRouter>
   </Provider>,
   target

@@ -18,7 +18,7 @@ async def _get_image(request):
     img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
 
     # Call to get_image_data caches image data
-    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, "jpeg")
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
     return web.json_response(_img_hdr, status=200)
 
@@ -30,7 +30,7 @@ async def _get_image(request):
     path = os.path.normpath(path)
     img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
 
-    _img_hdr, _raw_data, img_data = readimage.get_image_data(img_path, "jpeg")
+    _img_hdr, _raw_data, img_data = readimage.get_image_data(img_path)
 
     return web.Response(body=img_data, status=200,
                         content_type="image/gif")
@@ -43,7 +43,7 @@ async def _get_image_raw_data(request):
     params = await request.json()
     path = os.path.normpath(params.get("path", ""))
     img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
-    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, 'jpeg')
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
     return web.Response(body=_raw_data, status=200,
                         content_type="application/octet-stream")

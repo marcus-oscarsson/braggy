@@ -13,8 +13,8 @@ import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import FileBrowser from '../file-browser/file-browser-widget';
-import ImageView from '../imageview/imageview-widget';
+import FileBrowser from '../file-browser/FileBrowser';
+import ImageView from '../imageview/ImageView';
 
 import * as ImageViewAPI from '../imageview/imageview-api';
 

@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 import { Route } from 'react-router-dom';
 // import ImageView from '../imageview/imageview-widget';
-import Drawer from './drawer-widget';
+import Drawer from './Drawer';
 
 import './app.css';
 
-class App extends Component {
+class Main extends Component {
   render() {
     return (
       <div className="app">
@@ -17,4 +17,4 @@ class App extends Component {
   }
 }
 
-export default App;
+export default Main;

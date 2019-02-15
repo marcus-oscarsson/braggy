@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/marcus-oscarsson/braggy.svg?branch=master)](https://travis-ci.org/marcus-oscarsson/braggy)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9a7327c34a49fb926bb034ac0c4d44)](https://www.codacy.com/app/oscarsso/braggy?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=marcus-oscarsson/braggy&amp;utm_campaign=Badge_Grade)
 [![dependencies Status](https://david-dm.org/marcus-oscarsson/braggy/status.svg)](https://david-dm.org/marcus-oscarsson/braggy)
 [![devDependencies Status](https://david-dm.org/marcus-oscarsson/braggy/dev-status.svg)](https://david-dm.org/marcus-oscarsson/braggy?type=dev)
 [![codecov](https://codecov.io/gh/marcus-oscarsson/braggy/branch/master/graph/badge.svg)](https://codecov.io/gh/marcus-oscarsson/braggy)

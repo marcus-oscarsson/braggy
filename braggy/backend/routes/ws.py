@@ -1,13 +1,14 @@
 # -*- coding:utf-8 -*-
-import socketio
 import logging
+
+import socketio
 
 sio = socketio.AsyncServer(async_mode='aiohttp')
 
 
 @sio.on('connect')
 def connect(sid, environ):
-    logging.debug("Websocket connected %s" % sid)
+    logging.debug("Websocket connected %s", sid)
 
 
 @sio.on('chat message')

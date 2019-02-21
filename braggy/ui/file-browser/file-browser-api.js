@@ -14,7 +14,7 @@ const initialState = {
   selectedFile: '',
   loading: false,
   pageSize: 10,
-  currentRange: [0, 10]
+  currentRange: [0, 14]
 };
 
 

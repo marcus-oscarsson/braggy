@@ -15,7 +15,7 @@ const initialState = {
   currentImage: '',
   imageScale: 1,
   options: {
-    compress: true,
+    showResolution: true,
     autoScale: true,
     aggDownload: true
   }
@@ -143,7 +143,6 @@ export function fetchImageSuccess(data) {
   };
 }
 
-
 // REST API
 export function fetchImageRequest(path) {
   return (dispatch, getState) => {
@@ -154,25 +153,7 @@ export function fetchImageRequest(path) {
         .then((response) => {
           const img = `${API_URL}/image?path=${window.encodeURIComponent(path)}`;
           dispatch(fetchImageSuccess({ path, data: img, hdr: response.data }));
-        })
-        .then(() => {
-          axios.post(`${API_URL}/raw`, { path }, { responseType: 'blob' })
-            .then((response) => {
-              let data = null;
-
-              const fileReader = new FileReader();
-
-              fileReader.onload = (event) => {
-                data = new Int32Array(event.target.result);
-                dispatch(setRawData(path, data));
-                return data;
-              };
-
-              fileReader.readAsArrayBuffer(response.data);
-            })
-            .catch((error) => {
-              throw (error);
-            });
+          window.imgWorker.postMessage({ path });
         })
         .catch((error) => {
           throw (error);

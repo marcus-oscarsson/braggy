@@ -24,7 +24,8 @@ const styles = theme => ({
     overflow: 'auto'
   },
   input: {
-    marginLeft: theme.spacing.unit
+    marginLeft: '1px',
+    marginBottom: theme.spacing.unit * 2
   },
   fileNavContainer: {
     textAlign: 'center'
@@ -153,13 +154,16 @@ class FileBrowser extends React.Component {
     return (
       <div>
         <List>
-          <Input
-            placeholder="Search"
-            className={classes.input}
-            inputProps={{ 'aria-label': 'Filter' }}
-            onChange={this.filterInputOnChange}
-          />
-          <ListSubheader component="div">Files</ListSubheader>
+          <ListSubheader component="div" style={{ background: '#FFF' }}>
+            <div>
+              <Input
+                placeholder="Search"
+                className={classes.input}
+                inputProps={{ 'aria-label': 'Filter' }}
+                onChange={this.filterInputOnChange}
+              />
+            </div>
+          </ListSubheader>
           <div className={classes.scrollContainer}>
             { loading ? this.busyIndicator() : this.showFiles()}
           </div>

@@ -68,7 +68,8 @@ class ResponsiveDrawer extends React.Component {
       classes,
       fetchImageRequest,
       autoScale,
-      aggDownload,
+      progDownload,
+      showResolution,
       setOption,
       images
     } = this.props;
@@ -87,8 +88,14 @@ class ResponsiveDrawer extends React.Component {
             <FormControlLabel
               control={(<Checkbox color="primary" />)}
               label="Progressive download"
-              checked={aggDownload}
-              onChange={(e) => { setOption('aggDownload', e.target.checked); }}
+              checked={progDownload}
+              onChange={(e) => { setOption('progDownload', e.target.checked); }}
+            />
+            <FormControlLabel
+              control={(<Checkbox color="primary" />)}
+              label="Show resolution"
+              checked={showResolution}
+              onChange={(e) => { setOption('showResolution', e.target.checked); }}
             />
           </FormGroup>
         </div>
@@ -130,7 +137,8 @@ function mapStateToProps({ imageView }) {
   return {
     compress: imageView.options.compress,
     autoScale: imageView.options.autoScale,
-    aggDownload: imageView.options.aggDownload,
+    progDownload: imageView.options.progDownload,
+    showResolution: imageView.options.showResolution,
     images: imageView.images
   };
 }

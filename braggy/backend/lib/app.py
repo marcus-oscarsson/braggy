@@ -5,7 +5,6 @@ import os
 import configparser
 import logging
 
-# Application instance
 APP = None
 
 
@@ -44,20 +43,26 @@ class Application():
             else:
                 Application.CONFIG["DATA_PATH"] = data_path
 
-    def __init__(self):
+    @staticmethod
+    def abs_data_path(path):
+        path = os.path.normpath(path)
+        return os.path.join(Application.CONFIG.get("DATA_PATH"), path)
+
+    def __init__(self, sio):
         self.read_config()
+        self.sio = sio
 
 
-def init_app():
+def init_app(sio):
     """ Initializes the application instance """
     global APP
 
     if not APP:
-        APP = Application()
+        APP = Application(sio)
 
     return APP
 
 
 def get_app():
     """ Returns the application instance """
-    return init_app()
+    return APP

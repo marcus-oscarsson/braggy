@@ -36,9 +36,12 @@ class ImageCache():
         return path in ImageCache.IMAGES
 
 
-def get_image_data(path, fmt="bmp", color_space="L"):
+def get_image_data(path, fmt="gif", color_space="L"):
     _root, ext = os.path.splitext(path)
     img_data = bytes()
+
+    if not os.path.exists(path):
+        raise IOError("Path %s does not exist" % path)
 
     if ext.lower() == '.cbf':
         if not ImageCache.incache(path):

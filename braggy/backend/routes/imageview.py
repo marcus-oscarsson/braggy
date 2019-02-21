@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import os
+import logging
 
 from aiohttp import web
 
@@ -10,12 +11,9 @@ routes = web.RouteTableDef()
 
 
 @routes.post("/imageview/preload")
-async def _get_image(request):
-    APP_CONFIG = get_app().CONFIG
-
+async def _preload_image(request):
     params = await request.json()
-    path = os.path.normpath(params.get("path", ""))
-    img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
+    img_path = get_app().abs_data_path(params.get("path", ""))
 
     # Call to get_image_data caches image data
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
@@ -25,10 +23,8 @@ async def _get_image(request):
 
 @routes.get("/imageview/image")
 async def _get_image(request):
-    APP_CONFIG = get_app().CONFIG
     path = request.rel_url.query['path']
-    path = os.path.normpath(path)
-    img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
+    img_path = get_app().abs_data_path(path)
 
     _img_hdr, _raw_data, img_data = readimage.get_image_data(img_path)
 
@@ -38,11 +34,9 @@ async def _get_image(request):
 
 @routes.post("/imageview/raw")
 async def _get_image_raw_data(request):
-    APP_CONFIG = get_app().CONFIG
-
     params = await request.json()
-    path = os.path.normpath(params.get("path", ""))
-    img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
+    img_path = get_app().abs_data_path(params.get("path", ""))
+
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
     return web.Response(body=_raw_data, status=200,
@@ -51,11 +45,20 @@ async def _get_image_raw_data(request):
 
 @routes.post("/imageview/hdr")
 async def _get_image(request):
-    APP_CONFIG = get_app().CONFIG
-
     params = await request.json()
-    path = os.path.normpath(params.get("path", ""))
-    img_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
+    img_path = get_app().abs_data_path(params.get("path", ""))
+
     img_hdr = readimage.get_image_hdr(img_path)
 
     return web.json_response(img_hdr, status=200)
+
+
+@routes.get("/imageview/show-image")
+async def _show_image(request):
+    path = request.rel_url.query['path']
+    img_path = get_app().abs_data_path(path)
+    _img_hdr, _raw_data, img_data = readimage.get_image_data(img_path)
+
+    await get_app().sio.emit("show-image", {"path": img_path})
+
+    return web.json_response({}, status=200)

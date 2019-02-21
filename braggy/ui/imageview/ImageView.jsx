@@ -4,19 +4,26 @@ import { connect } from 'react-redux';
 import { withStyles } from '@material-ui/core/styles';
 import * as PIXI from 'pixi.js';
 
-import resolutionRings from './imageviewlib';
+import {
+  resolutionAt,
+  createImage,
+  createBeamCenter,
+  createResolutionRings
+} from './imageviewlib';
 
-import Worker from './image-download.worker';
-
-
-const styles = () => ({
+const styles = theme => ({
   imageViewContainer: {
     position: 'absolute',
     height: '100%',
     width: '100%'
   },
   infoDisplay: {
-    position: 'absolute'
+    position: 'absolute',
+    background: 'rgba(0, 0, 0, 0.6)',
+    padding: theme.spacing.unit,
+    borderRadius: '4px',
+    color: 'rgba(255, 255, 255, 1)',
+    display: 'none'
   }
 });
 
@@ -24,7 +31,8 @@ const styles = () => ({
 class ImageView extends React.Component {
   constructor(props) {
     super(props);
-    this.loadImageData = this.loadImageData.bind(this);
+    this.renderImageData = this.renderImageData.bind(this);
+    this.renderResolutionRings = this.renderResolutionRings.bind(this);
     this.onMouseWheel = this.onMouseWheel.bind(this);
     this.onMouseOver = this.onMouseOver.bind(this);
     this.onMouseOut = this.onMouseOut.bind(this);
@@ -32,7 +40,7 @@ class ImageView extends React.Component {
 
     this.canvasContainerRef = React.createRef();
     this.infoDisplayDivRef = React.createRef();
-    this.pixiapp = new PIXI.Application({ transparent: true });
+    this.pixiapp = new PIXI.Application({ transparent: true, roundPixels: true });
     this.currentImg = null;
     this.container = null;
     this.scale = 1;
@@ -50,12 +58,17 @@ class ImageView extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { currentImage } = this.props;
+    const { currentImage, showResolution } = this.props;
     const prevImage = prevProps.currentImage;
+    const prevShowResolution = prevProps.showResolution;
 
     // Only load image data if image changed.
     if (currentImage !== prevImage) {
-      window.requestAnimationFrame(() => (this.loadImageData()));
+      window.requestAnimationFrame(() => (this.renderImageData()));
+    }
+
+    if (prevShowResolution !== showResolution) {
+      window.requestAnimationFrame(() => (this.renderResolutionRings()));
     }
   }
 
@@ -79,7 +92,7 @@ class ImageView extends React.Component {
 
   onMouseOut() {
     this.mouseOverEvent = null;
-    this.infoDisplayDivRef.current.innerHTML = '';
+    this.infoDisplayDivRef.current.style.display = 'none';
   }
 
   onDragStart(event) {
@@ -111,13 +124,19 @@ class ImageView extends React.Component {
     }
 
     if (this.mouseOverEvent) {
+      const hdr = imgData.hdr.braggy_hdr;
       const pos = event.data.getLocalPosition(this.currentImg);
       const x = Math.floor((this.currentImg.width / this.currentImg.scale.x) / 2 + pos.x);
       const y = Math.floor((this.currentImg.height / this.currentImg.scale.y) / 2 + pos.y);
       const w = this.currentImg.width / this.currentImg.scale.x;
       const grey = imgData.raw ? imgData.raw[Math.floor(y * w + x)] : '?';
-
-      this.infoDisplayDivRef.current.innerHTML = `X:${x} Y:${y} Intensity: ${grey}`;
+      const cx = ((hdr.img_width / 2 + hdr.beam_ocx) - x) / hdr.pxxpm;
+      const cy = ((hdr.img_height / 2 + hdr.beam_ocy) - y) / hdr.pxypm;
+      const res = resolutionAt(cx, cy, hdr.detector_distance, hdr.wavelength).toFixed(2);
+      this.infoDisplayDivRef.current.style.top = `${event.data.originalEvent.offsetY + 15}px`;
+      this.infoDisplayDivRef.current.style.left = `${event.data.originalEvent.offsetX + 15}px`;
+      this.infoDisplayDivRef.current.style.display = 'block';
+      this.infoDisplayDivRef.current.innerHTML = `X:${x} Y:${y} <br /> Intensity: ${grey} <br /> Resolution ${res}`;
     }
   }
 
@@ -132,86 +151,72 @@ class ImageView extends React.Component {
     }
   }
 
-  loadImageData() {
+  renderImageData() {
     const { images, currentImage } = this.props;
     const imgData = images[currentImage];
-    const hdr = imgData.hdr.braggy_hdr;
-
     const { pixiapp } = this;
 
     pixiapp.stage.removeChildren();
 
-    const img = new PIXI.Sprite.from(imgData.data);
+    const img = createImage(imgData.data);
+    this.currentImg = img;
+
     img.texture.baseTexture.on('loaded', e => (this.imgLoaded(e, img)));
-
-    img.interactive = true;
-
-    img.anchor.set(0.5);
     img.x = pixiapp.screen.width / 2;
     img.y = pixiapp.screen.height / 2;
+    img.zIndex = 1;
 
-    this.container = new PIXI.Container();
-    this.container.x = img.x;
-    this.container.y = img.y;
-
-    if (hdr.beam_ocx !== undefined) {
-      const pixiCircle = new PIXI.Graphics();
-      pixiCircle.lineStyle(1, 0xFF00FF, 0.2);
-      pixiCircle.drawCircle(hdr.beam_ocx, hdr.beam_ocy, 3);
-      pixiCircle.endFill();
-      this.container.addChild(pixiCircle);
-
-      const rings = resolutionRings(hdr.detector_radius, hdr.detector_distance, hdr.wavelength);
-
-      rings.forEach((ring) => {
-        const rx = ring.r * hdr.pxxpm;
-        pixiCircle.drawCircle(hdr.beam_ocx, hdr.beam_ocy, rx / 2);
-
-        const t = new PIXI.Text(`${ring.res.toFixed(2).toString()} A`,
-          {
-            fontFamily: 'Arial',
-            fontSize: 45,
-            fill: 0xff1010,
-            align: 'center'
-          });
-
-        t.x = hdr.beam_ocx;
-        t.y = hdr.beam_ocy + rx / 2 + 20;
-        t.anchor.set(0.5);
-        t.alpha = 0.7;
-
-        this.container.addChild(t);
-      });
-    }
-
-    img.on('added', this.onAdded);
     img.on('pointerover', this.onMouseOver);
     img.on('pointerout', this.onMouseOut);
-
     img.on('pointerdown', this.onDragStart);
     img.on('pointerup', this.onDragEnd);
     img.on('pointerupoutside', this.onDragEnd);
     img.on('pointermove', this.onMouseMove);
 
-    this.currentImg = img;
-
     pixiapp.stage.addChild(img);
+    this.renderResolutionRings();
+  }
+
+  renderResolutionRings() {
+    const { images, currentImage, showResolution } = this.props;
+    const imgData = images[currentImage];
+    const hdr = imgData.hdr.braggy_hdr;
+    const { pixiapp } = this;
+
+    if (this.container) {
+      pixiapp.stage.removeChild(this.container);
+    }
+
+    this.container = new PIXI.Container();
+    this.container.x = this.currentImg.x;
+    this.container.y = this.currentImg.y;
+    this.container.scale.x = this.scale;
+    this.container.scale.y = this.scale;
+    this.container.zIndex = 100;
+
+    if (hdr.beam_ocx !== undefined && showResolution) {
+      const beamCenter = createBeamCenter(hdr);
+      const rings = createResolutionRings(hdr);
+      this.container.addChild(beamCenter);
+      this.container.addChild(...rings);
+    }
+
     pixiapp.stage.addChild(this.container);
+    pixiapp.stage.sortChildren();
   }
 
   render() {
     const { classes } = this.props;
 
-    const worker = new Worker();
-    worker.postMessage({ msg: 'hello' });
-
     return (
-      <div
-        id="imageview-container"
-        ref={this.canvasContainerRef}
-        className={classes.imageViewContainer}
-      >
-        <div ref={this.infoDisplayDivRef} className={classes.infoDisplay} />
+      <div>
+        <div
+          id="imageview-container"
+          ref={this.canvasContainerRef}
+          className={classes.imageViewContainer}
+        >
+          <div ref={this.infoDisplayDivRef} className={classes.infoDisplay} />
+        </div>
       </div>
     );
   }
@@ -222,7 +227,8 @@ function mapStateToProps({ imageView }) {
   return {
     images: imageView.images,
     currentImage: imageView.currentImage,
-    autoScale: imageView.options.autoScale
+    autoScale: imageView.options.autoScale,
+    showResolution: imageView.options.showResolution
   };
 }
 

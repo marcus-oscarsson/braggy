@@ -1,4 +1,4 @@
 aiohttp
 pillow
 fabio
-socketio
+python-socketio

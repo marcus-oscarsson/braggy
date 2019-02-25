@@ -21,7 +21,6 @@ store.dispatch(initFileBrowserRequest());
 socket.on('connect', () => (console.log('connect')));
 
 socket.on('show-image', (data) => {
-  console.log(data);
   store.dispatch(ImageViewAPI.fetchImageRequest(data.path));
 });
 
@@ -31,12 +30,6 @@ const worker = new Worker();
 window.imgWorker = worker;
 
 worker.onmessage = function (e) {
-  console.log(e.data);
-  console.log('Message received from worker');
-};
-
-worker.onmessage = function (e) {
-  console.log('Message received from worker');
   store.dispatch(ImageViewAPI.setRawData(e.data.path, e.data.data));
 };
 

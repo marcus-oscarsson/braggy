@@ -21,6 +21,7 @@ export function resolutionAt(x, y, dd, wavelength) {
 
 export function createImage(data) {
   const img = new PIXI.Sprite.from(data);
+
   img.interactive = true;
   img.anchor.set(0.5);
 

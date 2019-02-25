@@ -48,17 +48,18 @@ class Application():
         path = os.path.normpath(path)
         return os.path.join(Application.CONFIG.get("DATA_PATH"), path)
 
-    def __init__(self, sio):
+    def __init__(self, static_fpath, sio):
         self.read_config()
         self.sio = sio
+        self.static_path = static_fpath
 
 
-def init_app(sio):
+def init_app(static_fpath, sio):
     """ Initializes the application instance """
     global APP
 
     if not APP:
-        APP = Application(sio)
+        APP = Application(static_fpath, sio)
 
     return APP
 

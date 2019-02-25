@@ -36,7 +36,7 @@ class ImageCache():
         return path in ImageCache.IMAGES
 
 
-def get_image_data(path, fmt="gif", color_space="L"):
+def get_image_data(path, fmt="png", color_space="L"):
     _root, ext = os.path.splitext(path)
     img_data = bytes()
 
@@ -59,7 +59,7 @@ def _get_image_data(path, fmt, color_space):
     image = ImageOps.invert(image)
 
     byte_stream = io.BytesIO()
-    image.save(byte_stream, format=fmt)
+    image.save(byte_stream, format=fmt, compress_level=0)
 
     raw_data = cbf_image.data.tobytes()
     img_data = byte_stream.getvalue()

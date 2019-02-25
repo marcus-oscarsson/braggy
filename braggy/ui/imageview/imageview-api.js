@@ -151,9 +151,16 @@ export function fetchImageRequest(path) {
     if (!(path in images)) {
       axios.post(`${API_URL}/preload`, { path })
         .then((response) => {
-          const img = `${API_URL}/image?path=${window.encodeURIComponent(path)}`;
-          dispatch(fetchImageSuccess({ path, data: img, hdr: response.data }));
-          window.imgWorker.postMessage({ path });
+          const hdr = response.data;
+
+          axios.post('/api/imageview/image', { path }, { responseType: 'blob' })
+            .then((resp) => {
+              const img = window.URL.createObjectURL(resp.data);
+              dispatch(fetchImageSuccess({ path, data: img, hdr }));
+              window.imgWorker.postMessage({ path });
+            });
+
+          // const img = `${API_URL}/image?path=${window.encodeURIComponent(path)}`;
         })
         .catch((error) => {
           throw (error);

@@ -9,7 +9,7 @@ async def test_get_preload(client):
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/imageview/preload", json=params)
+    resp = await client.post("/api/imageview/preload", json=params)
 
     data = await(resp.json())
 
@@ -25,9 +25,9 @@ async def test_get_image(client):
 
     params = {"path": imgpath}
 
-    resp = await client.get("/imageview/image", params=params)
+    resp = await client.get("/api/imageview/image", params=params)
     assert resp.status == 200
-    assert resp.content_type == 'image/gif'
+    assert resp.content_type == 'image/png'
 
 
 async def test_get_image_raw_data(client):
@@ -36,7 +36,7 @@ async def test_get_image_raw_data(client):
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/imageview/raw", json=params)
+    resp = await client.post("/api/imageview/raw", json=params)
 
     data = await(resp.read())
 
@@ -50,7 +50,7 @@ async def test_get_image_header(client):
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/imageview/hdr", json=params)
+    resp = await client.post("/api/imageview/hdr", json=params)
 
     data = await(resp.json())
 

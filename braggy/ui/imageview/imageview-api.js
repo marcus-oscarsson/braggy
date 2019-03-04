@@ -1,12 +1,13 @@
 import axios from 'axios';
 
+import imageBuffer from '../app/buffer';
+
 // Actions
 export const INIT = 'imageview/INIT';
 export const ADD_IMAGE = 'imageview/ADD_IMAGE';
 export const SET_CURRENT_IMAGE = 'imageview/SET_CURRENT_IMAGE';
 export const SET_AND_ADD_IMAGE = 'imageview/SET_AND_ADD_IMAGE';
 export const SET_OPTION = 'imageview/SET_OPTION';
-export const SET_RAW_DATA = 'imageview/SET_RAW_DATA';
 
 const API_URL = '/api/imageview';
 
@@ -35,9 +36,7 @@ export default (state = initialState, action) => {
         images: {
           ...state.images,
           [action.path]: {
-            data: action.data,
-            hdr: action.hdr,
-            raw: null
+            hdr: action.hdr
           }
         },
         currentImage: action.path
@@ -48,20 +47,7 @@ export default (state = initialState, action) => {
         images: {
           ...state.images,
           [action.path]: {
-            data: action.data,
-            hdr: action.hdr,
-            raw: null
-          }
-        }
-      };
-    case SET_RAW_DATA:
-      return {
-        ...state,
-        images: {
-          ...state.images,
-          [action.path]: {
-            ...state.images[action.path],
-            raw: action.data
+            hdr: action.hdr
           }
         }
       };
@@ -86,10 +72,7 @@ export function addImage(data) {
   return (dispatch) => {
     dispatch({
       type: ADD_IMAGE,
-      path: data.path,
-      data: data.data,
-      width: data.width,
-      height: data.height
+      path: data.path
     });
   };
 }
@@ -100,7 +83,6 @@ export function setAndAddImage(data) {
     dispatch({
       type: SET_AND_ADD_IMAGE,
       path: data.path,
-      data: data.data,
       hdr: data.hdr
     });
   };
@@ -126,16 +108,6 @@ export function setCurrentImage(path) {
   };
 }
 
-export function setRawData(path, data) {
-  return (dispatch) => {
-    dispatch({
-      type: SET_RAW_DATA,
-      path,
-      data
-    });
-  };
-}
-
 
 export function fetchImageSuccess(data) {
   return (dispatch) => {
@@ -143,24 +115,29 @@ export function fetchImageSuccess(data) {
   };
 }
 
+
 // REST API
 export function fetchImageRequest(path) {
-  return (dispatch, getState) => {
-    const { images } = getState().imageView;
+  return (dispatch) => {
+    // const { images } = getState().imageView;
 
-    if (!(path in images)) {
+    if (!(imageBuffer.has(path))) {
       axios.post(`${API_URL}/preload`, { path })
         .then((response) => {
           const hdr = response.data;
 
           axios.post('/api/imageview/image', { path }, { responseType: 'blob' })
             .then((resp) => {
-              const img = window.URL.createObjectURL(resp.data);
-              dispatch(fetchImageSuccess({ path, data: img, hdr }));
+              const img = new Image();
+              img.src = window.URL.createObjectURL(resp.data);
+              imageBuffer.add(path, 'img', img);
+
+              img.onload = () => {
+                dispatch(fetchImageSuccess({ path, hdr }));
+              };
+
               window.imgWorker.postMessage({ path });
             });
-
-          // const img = `${API_URL}/image?path=${window.encodeURIComponent(path)}`;
         })
         .catch((error) => {
           throw (error);

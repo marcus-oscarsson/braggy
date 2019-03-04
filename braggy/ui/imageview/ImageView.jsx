@@ -4,6 +4,8 @@ import { connect } from 'react-redux';
 import { withStyles } from '@material-ui/core/styles';
 import * as PIXI from 'pixi.js';
 
+import imageBuffer from '../app/buffer';
+
 import {
   resolutionAt,
   createImage,
@@ -31,6 +33,7 @@ const styles = theme => ({
 class ImageView extends React.Component {
   constructor(props) {
     super(props);
+    this.autoScale = this.autoScale.bind(this);
     this.renderImageData = this.renderImageData.bind(this);
     this.renderResolutionRings = this.renderResolutionRings.bind(this);
     this.onMouseWheel = this.onMouseWheel.bind(this);
@@ -41,6 +44,7 @@ class ImageView extends React.Component {
     this.canvasContainerRef = React.createRef();
     this.infoDisplayDivRef = React.createRef();
     this.pixiapp = new PIXI.Application({ transparent: true, roundPixels: true });
+    PIXI.settings.SCALE_MODE = 0;
     this.currentImg = null;
     this.container = null;
     this.scale = 1;
@@ -114,6 +118,7 @@ class ImageView extends React.Component {
   onMouseMove(event) {
     const { images, currentImage } = this.props;
     const imgData = images[currentImage];
+    const data = imageBuffer.get(currentImage).raw;
 
     if (this.currentImg.dragging) {
       const newPosition = event.data.getLocalPosition(this.currentImg.parent);
@@ -129,7 +134,7 @@ class ImageView extends React.Component {
       const x = Math.floor((this.currentImg.width / this.currentImg.scale.x) / 2 + pos.x);
       const y = Math.floor((this.currentImg.height / this.currentImg.scale.y) / 2 + pos.y);
       const w = this.currentImg.width / this.currentImg.scale.x;
-      const grey = imgData.raw ? imgData.raw[Math.floor(y * w + x)] : '?';
+      const grey = data ? data[Math.floor(y * w + x)] : '?';
       const cx = ((hdr.img_width / 2 + hdr.beam_ocx) - x) / hdr.pxxpm;
       const cy = ((hdr.img_height / 2 + hdr.beam_ocy) - y) / hdr.pxypm;
       const res = resolutionAt(cx, cy, hdr.detector_distance, hdr.wavelength).toFixed(2);
@@ -140,28 +145,35 @@ class ImageView extends React.Component {
     }
   }
 
-  imgLoaded(sprite, _img) {
-    const img = _img;
-    const { autoScale } = this.props;
-    const ratio = this.pixiapp.screen.height / _img.height;
+  autoScale(img) {
+    if (img.width > 1) {
+      const image = img;
+      const { autoScale } = this.props;
+      const ratio = this.pixiapp.screen.height / image.height;
 
-    if (autoScale) {
-      img.scale.x = ratio;
-      img.scale.y = ratio;
+      if (autoScale) {
+        image.scale.x = ratio;
+        image.scale.y = ratio;
+        this.scale = ratio;
+      }
     }
   }
 
   renderImageData() {
-    const { images, currentImage } = this.props;
-    const imgData = images[currentImage];
+    const { currentImage } = this.props;
     const { pixiapp } = this;
 
     pixiapp.stage.removeChildren();
 
-    const img = createImage(imgData.data);
+    const data = imageBuffer.get(currentImage).img;
+    let img = null;
+
+    img = createImage(data);
+
+    this.autoScale(img);
+
     this.currentImg = img;
 
-    img.texture.baseTexture.on('loaded', e => (this.imgLoaded(e, img)));
     img.x = pixiapp.screen.width / 2;
     img.y = pixiapp.screen.height / 2;
     img.zIndex = 1;
@@ -175,6 +187,7 @@ class ImageView extends React.Component {
 
     pixiapp.stage.addChild(img);
     this.renderResolutionRings();
+    imageBuffer.pop(currentImage);
   }
 
   renderResolutionRings() {
@@ -202,7 +215,6 @@ class ImageView extends React.Component {
     }
 
     pixiapp.stage.addChild(this.container);
-    pixiapp.stage.sortChildren();
   }
 
   render() {

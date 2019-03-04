@@ -1,5 +1,7 @@
-import urllib.request
 import time
+import json
+
+from urllib import request
 
 
 if __name__ == "__main__":
@@ -16,7 +18,15 @@ if __name__ == "__main__":
         "http://localhost:3000/api/imageview/show-image?path=id29%2FFAE_w1_2_0059.cbf",
     ]
 
+    data = json.dumps({"wavelength": 0, "detector_distance": 0}).encode()
+
+    req = request.Request("http://localhost:3000/api/imageview/start-follow", data=data)
+    request.urlopen(req).read()
+
     for url in urls:
-        time.sleep(0.2)
-        contents = urllib.request.urlopen(url).read()
-        print("OK: %s" % url)
+        time.sleep(0.1)
+        content = json.loads(request.urlopen(url).read()).get('msg')
+        print("%s: %s" % (content, url))
+
+    req = request.Request("http://localhost:3000/api/imageview/stop-follow", data={})
+    request.urlopen(req).read()

@@ -11,7 +11,7 @@ async def test_root(client):
 
 async def test_list_dir(client):
     """Test root route"""
-    resp = await client.post("/file-browser/list-dir", json={"path": ""})
+    resp = await client.post("/api/file-browser/list-dir", json={"path": ""})
     data = await(resp.json())
 
     assert resp.status == 200
@@ -20,7 +20,7 @@ async def test_list_dir(client):
 
 async def test_init(client):
     """Test root route"""
-    resp = await client.post("/file-browser/init", json={"path": ""})
+    resp = await client.post("/api/file-browser/init", json={"path": ""})
     data = await(resp.json())
 
     assert resp.status == 200

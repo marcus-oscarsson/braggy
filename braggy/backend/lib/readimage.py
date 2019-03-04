@@ -55,11 +55,11 @@ def get_image_data(path, fmt="png", color_space="L"):
 
 def _get_image_data(path, fmt, color_space):
     cbf_image = cbfimage(fname=path)
-    image = cbf_image.toPIL16().convert(color_space)
+    image = cbf_image.toPIL16().convert(color_space, dither=None)
     image = ImageOps.invert(image)
 
     byte_stream = io.BytesIO()
-    image.save(byte_stream, format=fmt, compress_level=0)
+    image.save(byte_stream, format=fmt, compress_level=1)
 
     raw_data = cbf_image.data.tobytes()
     img_data = byte_stream.getvalue()

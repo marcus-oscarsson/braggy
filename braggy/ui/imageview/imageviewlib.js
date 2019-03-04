@@ -28,7 +28,6 @@ export function createImage(data) {
   return img;
 }
 
-
 export function createBeamCenter(hdr) {
   const pixiCircle = new PIXI.Graphics();
   pixiCircle.lineStyle(1, 0xFF00FF, 0.2);

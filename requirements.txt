@@ -3,3 +3,4 @@ pillow
 fabio
 python-socketio
 h5py
+lz4

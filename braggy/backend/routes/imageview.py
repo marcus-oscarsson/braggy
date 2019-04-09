@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import zlib
+import lz4.frame
 
 from aiohttp import web
 
@@ -15,7 +16,7 @@ async def _preload_image(request):
     img_path = get_app().abs_data_path(params.get("path", ""))
 
     # Call to get_image_data caches image data
-    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
 
     return web.json_response(_img_hdr, status=200)
 
@@ -36,6 +37,18 @@ async def _get_image_post(request):
     params = await request.json()
     img_path = get_app().abs_data_path(params.get("path", ""))
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+
+    return web.Response(body=_img_data, status=200,
+                        content_type="application/octet-stream")
+
+
+@routes.post("/api/imageview/image-raw")
+async def _get_image_post(request):
+    params = await request.json()
+    img_path = get_app().abs_data_path(params.get("path", ""))
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
+
+    _img_data = lz4.frame.compress(_img_data)
 
     return web.Response(body=_img_data, status=200,
                         content_type="application/octet-stream")
@@ -94,6 +107,13 @@ async def _start_follow(request):
     detector_distance = params.get("detector_distance", 0)
     detector_radius = params.get("detector_diameter", 0)
 
+    await get_app().sio.emit("set-follow", {
+        "follow": True,
+        "wavelength": wavelength,
+        "detector_distance": detector_distance,
+        "detector_radius": detector_radius
+        })
+
     app.follow_set_bl_params(wavelength, detector_distance, detector_radius)
     app.follow_start()
     return web.json_response({}, status=200)
@@ -102,5 +122,13 @@ async def _start_follow(request):
 @routes.post("/api/imageview/stop-follow")
 async def _stop_follow(request):
     app = get_app()
+
+    await get_app().sio.emit("set-follow", {
+        "follow": False,
+        "wavelength": "null",
+        "detector_distance": "null",
+        "detector_radius": "null"
+        })
+
     app.follow_stop()
     return web.json_response({}, status=200)

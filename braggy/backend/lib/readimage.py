@@ -5,10 +5,10 @@ import os
 import io
 import math
 import logging
-
 from collections import OrderedDict
-from PIL import Image, ImageOps
 
+import numpy as np
+from PIL import Image, ImageOps
 from fabio.cbfimage import cbfimage
 
 Image.MAX_IMAGE_PIXELS = 1000000000
@@ -55,15 +55,13 @@ def get_image_data(path, fmt="png", color_space="L"):
 
 def _get_image_data(path, fmt, color_space):
     cbf_image = cbfimage(fname=path)
-    image = cbf_image.toPIL16().convert(color_space, dither=None)
-    image = ImageOps.invert(image)
-
-    byte_stream = io.BytesIO()
-    image.save(byte_stream, format=fmt, compress_level=1)
-
     raw_data = cbf_image.data.tobytes()
-    img_data = byte_stream.getvalue()
     img_hdr = cbf_image.header
+
+    if fmt != "raw":
+        img_data = _image_based_repr(cbf_image, fmt, color_space)
+    else:
+        img_data = _8bit_raw_repr(cbf_image, color_space)
 
     parsed_ext_hdr, braggy_hdr = _parse_header(img_hdr, cbf_image.dim1, cbf_image.dim2)
 
@@ -71,6 +69,25 @@ def _get_image_data(path, fmt, color_space):
     img_hdr['braggy_hdr'] = braggy_hdr
 
     return img_hdr, raw_data, img_data
+
+
+def _8bit_raw_repr(raw_data, color_space):
+    data = raw_data.data.clip(0)
+    data = data.astype(np.uint8)
+
+    return data.tobytes()
+
+
+def _image_based_repr(cbf_image, fmt, color_space):
+    image = cbf_image.toPIL16().convert(color_space, dither=None)
+    image = ImageOps.invert(image)
+
+    byte_stream = io.BytesIO()
+    image.save(byte_stream, format=fmt, compress_level=1)
+
+    img_data = byte_stream.getvalue()
+
+    return img_data
 
 
 def _parse_header(hdr, width, height):

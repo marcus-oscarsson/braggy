@@ -126,17 +126,10 @@ export function fetchImageRequest(path) {
         .then((response) => {
           const hdr = response.data;
 
-          axios.post('/api/imageview/image', { path }, { responseType: 'blob' })
+          axios.post('/api/imageview/image-raw', { path }, { responseType: 'blob' })
             .then((resp) => {
-              const img = new Image();
-              img.src = window.URL.createObjectURL(resp.data);
-              imageBuffer.add(path, 'img', img);
-
-              img.onload = () => {
-                dispatch(fetchImageSuccess({ path, hdr }));
-              };
-
-              window.imgWorker.postMessage({ path });
+              window.imgDataWorker.postMessage({ path, hdr, data: resp.data });
+              window.imgDownloadWorker.postMessage({ path });
             });
         })
         .catch((error) => {

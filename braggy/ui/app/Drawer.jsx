@@ -1,12 +1,18 @@
 import React from 'react';
 import CssBaseline from '@material-ui/core/CssBaseline';
+import classNames from 'classnames';
 import Divider from '@material-ui/core/Divider';
-import Drawer from '@material-ui/core/Drawer';
+import SwipeableDrawer from '@material-ui/core/SwipeableDrawer';
 import List from '@material-ui/core/List';
 import FormLabel from '@material-ui/core/FormLabel';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import Snackbar from '@material-ui/core/Snackbar';
+import Fade from '@material-ui/core/Fade';
+import IconButton from '@material-ui/core/IconButton';
+import SettingsIcon from '@material-ui/icons/Settings';
+import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 
 import { withStyles } from '@material-ui/core/styles';
 
@@ -18,7 +24,7 @@ import ImageView from '../imageview/ImageView';
 
 import * as ImageViewAPI from '../imageview/imageview-api';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 const styles = theme => ({
   root: {
@@ -34,12 +40,6 @@ const styles = theme => ({
     zIndex: theme.zIndex.drawer + 1,
     background: '#ffffff'
   },
-  menuButton: {
-    marginRight: 20,
-    [theme.breakpoints.up('sm')]: {
-      display: 'none'
-    }
-  },
   content: {
     padding: theme.spacing.unit * 3
   },
@@ -48,20 +48,40 @@ const styles = theme => ({
   },
   imageViewContainer: {
     position: 'absolute',
-    left: `${drawerWidth + 10}px`,
+    left: '10px',
     right: '10px',
     top: '10px',
     bottom: '10px',
     overflow: 'hidden'
   },
-  toolbar: theme.mixins.toolbar
+  toolbar: theme.mixins.toolbar,
+  snackBar: {
+    bottom: '2em'
+  },
+  menuButton: {
+    position: 'fixed',
+    zIndex: 1,
+    right: '0.5em',
+    top: '0.5em'
+  },
+  hide: {
+    display: 'none',
+  },
 });
 
 
 class ResponsiveDrawer extends React.Component {
-  toggleDrawer(side, open) {
-    return () => this.setState({ [side]: open });
-  }
+  state = {
+    open: false,
+  };
+
+  handleDrawerOpen = () => {
+    this.setState({ open: true });
+  };
+
+  handleDrawerClose = () => {
+    this.setState({ open: false });
+  };
 
   render() {
     const {
@@ -71,35 +91,17 @@ class ResponsiveDrawer extends React.Component {
       progDownload,
       showResolution,
       setOption,
-      images
+      images,
+      app,
+      currentImagePath
     } = this.props;
+
+    const {
+      open
+    } = this.state;
 
     const drawer = (
       <div>
-        <div className={classes.optionsForm}>
-          <FormLabel component="legend">Options</FormLabel>
-          <FormGroup>
-            <FormControlLabel
-              control={(<Checkbox color="primary" />)}
-              label="Auto scale"
-              checked={autoScale}
-              onChange={(e) => { setOption('autoScale', e.target.checked); }}
-            />
-            <FormControlLabel
-              control={(<Checkbox color="primary" />)}
-              label="Progressive download"
-              checked={progDownload}
-              onChange={(e) => { setOption('progDownload', e.target.checked); }}
-            />
-            <FormControlLabel
-              control={(<Checkbox color="primary" />)}
-              label="Show resolution"
-              checked={showResolution}
-              onChange={(e) => { setOption('showResolution', e.target.checked); }}
-            />
-          </FormGroup>
-        </div>
-        <Divider />
         <List>
           <FileBrowser
             onFileClick={fetchImageRequest}
@@ -111,18 +113,81 @@ class ResponsiveDrawer extends React.Component {
 
     return (
       <div className={classes.root}>
+        <IconButton
+          color="inherit"
+          aria-label="Open drawer"
+          onClick={this.handleDrawerOpen}
+          className={classNames(classes.menuButton, open && classes.hide)}
+        >
+          <SettingsIcon />
+        </IconButton>
         <CssBaseline />
         {/* The implementation can be swapped with js to avoid SEO duplication of links. */}
-        <Drawer
+        <SwipeableDrawer
+          variant="persistent"
+          anchor="left"
           className={classes.drawer}
-          variant="permanent"
           classes={{
             paper: classes.drawerPaper
           }}
-          open
+          open={!app.follow}
         >
           {drawer}
-        </Drawer>
+        </SwipeableDrawer>
+        <SwipeableDrawer
+          className={classes.drawer}
+          variant="persistent"
+          anchor="right"
+          open={open}
+          classes={{
+            paper: classes.drawerPaper,
+          }}
+        >
+          <div className={classes.drawerHeader}>
+            <IconButton onClick={this.handleDrawerClose}>
+              <ChevronRightIcon />
+            </IconButton>
+          </div>
+          <Divider />
+          <div className={classes.optionsForm}>
+            <FormLabel component="legend">Options</FormLabel>
+            <FormGroup>
+              <FormControlLabel
+                control={(<Checkbox color="primary" />)}
+                label="Auto scale"
+                checked={autoScale}
+                onChange={(e) => { setOption('autoScale', e.target.checked); }}
+              />
+              <FormControlLabel
+                control={(<Checkbox color="primary" />)}
+                label="Progressive download"
+                checked={progDownload}
+                onChange={(e) => { setOption('progDownload', e.target.checked); }}
+              />
+              <FormControlLabel
+                control={(<Checkbox color="primary" />)}
+                label="Show resolution"
+                checked={showResolution}
+                onChange={(e) => { setOption('showResolution', e.target.checked); }}
+              />
+            </FormGroup>
+          </div>
+          <Divider />
+        </SwipeableDrawer>
+        <Snackbar
+          className={classes.snackBar}
+          open={app.follow}
+          onClose={this.handleClose}
+          TransitionComponent={Fade}
+          ContentProps={{
+            'aria-describedby': 'message-id',
+          }}
+          message={(
+            <span id="message-id">
+              Following:
+              {currentImagePath}
+            </span>)}
+        />
         <main className={classes.content}>
           <div className={classes.imageViewContainer}>
             <ImageView />
@@ -133,13 +198,15 @@ class ResponsiveDrawer extends React.Component {
   }
 }
 
-function mapStateToProps({ imageView }) {
+function mapStateToProps({ imageView, app }) {
   return {
     compress: imageView.options.compress,
     autoScale: imageView.options.autoScale,
     progDownload: imageView.options.progDownload,
     showResolution: imageView.options.showResolution,
-    images: imageView.images
+    currentImagePath: imageView.currentImage,
+    images: imageView.images,
+    app
   };
 }
 

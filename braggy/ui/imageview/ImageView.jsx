@@ -8,7 +8,7 @@ import imageBuffer from '../app/buffer';
 
 import {
   resolutionAt,
-  createImage,
+  createImageFromBuffer,
   createBeamCenter,
   createResolutionRings
 } from './imageviewlib';
@@ -25,7 +25,8 @@ const styles = theme => ({
     padding: theme.spacing.unit,
     borderRadius: '4px',
     color: 'rgba(255, 255, 255, 1)',
-    display: 'none'
+    display: 'none',
+    userSelect: 'none',
   }
 });
 
@@ -40,6 +41,7 @@ class ImageView extends React.Component {
     this.onMouseOver = this.onMouseOver.bind(this);
     this.onMouseOut = this.onMouseOut.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
+    this.onDragStart = this.onDragStart.bind(this);
 
     this.canvasContainerRef = React.createRef();
     this.infoDisplayDivRef = React.createRef();
@@ -49,6 +51,8 @@ class ImageView extends React.Component {
     this.container = null;
     this.scale = 1;
     this.mouseOverEvent = null;
+    this.zoomMouseX = null;
+    this.zoomMouseY = null;
   }
 
   componentDidMount() {
@@ -81,12 +85,44 @@ class ImageView extends React.Component {
   }
 
   onMouseWheel(e) {
+    const zoomOutDisabled = this.pixiapp.screen.height >= Math.floor(this.currentImg.height);
+
+    if (e.wheelDelta < 0 && zoomOutDisabled) {
+      this.currentImg.x = this.pixiapp.screen.width / 2;
+      this.currentImg.y = this.pixiapp.screen.height / 2;
+
+      this.container.x = this.pixiapp.screen.width / 2;
+      this.container.y = this.pixiapp.screen.height / 2;
+      return;
+    }
+
     if (this.mouseOverEvent) {
-      this.scale += (e.wheelDelta * 0.001);
+      if (this.zoomMouseX !== e.offsetX && this.zoomMouseY !== e.offsetY) {
+        this.zoomMouseX = e.offsetX;
+        this.zoomMouseY = e.offsetY;
+        const dx = (this.pixiapp.screen.width / 2) - e.offsetX;
+        const dy = (this.pixiapp.screen.height / 2) - e.offsetY;
+
+        this.currentImg.x += dx;
+        this.currentImg.y += dy;
+        this.container.x += dx;
+        this.container.y += dy;
+      }
+
+      this.scale += Math.sign(e.wheelDelta) / 2;
+
+      if (this.scale > 20) {
+        this.scale = 60;
+      }
+
+      if (this.scale === 60 && e.wheelDelta < 0) {
+        this.scale = 20;
+      }
+
       this.currentImg.scale.x = this.scale;
       this.currentImg.scale.y = this.scale;
-      this.container.scale.x = this.scale;
-      this.container.scale.y = this.scale;
+
+      this.renderResolutionRings();
     }
   }
 
@@ -100,12 +136,14 @@ class ImageView extends React.Component {
   }
 
   onDragStart(event) {
-    this.dragging = true;
-    this.dragStartPos = event.data.getLocalPosition(this.parent);
-    this.dragStartOx = this.dragStartPos.x - this.x;
-    this.dragStartOy = this.dragStartPos.y - this.y;
+    const dragEnabled = this.pixiapp.screen.height < Math.floor(this.currentImg.height);
 
-    return event;
+    if (dragEnabled) {
+      this.currentImg.dragging = true;
+      this.currentImg.dragStartPos = event.data.getLocalPosition(this.currentImg.parent);
+      this.currentImg.dragStartOx = this.currentImg.dragStartPos.x - this.currentImg.x;
+      this.currentImg.dragStartOy = this.currentImg.dragStartPos.y - this.currentImg.y;
+    }
   }
 
   onDragEnd() {
@@ -160,15 +198,15 @@ class ImageView extends React.Component {
   }
 
   renderImageData() {
-    const { currentImage } = this.props;
+    const { currentImage, images } = this.props;
     const { pixiapp } = this;
+    const imgData = images[currentImage];
+    const hdr = imgData.hdr.braggy_hdr;
 
     pixiapp.stage.removeChildren();
-
     const data = imageBuffer.get(currentImage).img;
-    let img = null;
-
-    img = createImage(data);
+    const img = createImageFromBuffer(data, hdr.img_width, hdr.img_height);
+    // const img = createImage(data);
 
     this.autoScale(img);
 
@@ -203,13 +241,13 @@ class ImageView extends React.Component {
     this.container = new PIXI.Container();
     this.container.x = this.currentImg.x;
     this.container.y = this.currentImg.y;
-    this.container.scale.x = this.scale;
-    this.container.scale.y = this.scale;
+    // this.container.scale.x = this.scale;
+    // this.container.scale.y = this.scale;
     this.container.zIndex = 100;
 
     if (hdr.beam_ocx !== undefined && showResolution) {
       const beamCenter = createBeamCenter(hdr);
-      const rings = createResolutionRings(hdr);
+      const rings = createResolutionRings(hdr, this.scale);
       this.container.addChild(beamCenter);
       this.container.addChild(...rings);
     }

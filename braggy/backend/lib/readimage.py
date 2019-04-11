@@ -36,7 +36,7 @@ class ImageCache():
         return path in ImageCache.IMAGES
 
 
-def get_image_data(path, fmt="png", color_space="L"):
+def get_image_data(path, fmt="raw", color_space="L"):
     _root, ext = os.path.splitext(path)
     img_data = bytes()
 

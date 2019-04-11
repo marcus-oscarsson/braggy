@@ -66,12 +66,19 @@ class ImageView extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { currentImage, showResolution } = this.props;
+    const { currentImage, showResolution, showFullData } = this.props;
     const prevImage = prevProps.currentImage;
     const prevShowResolution = prevProps.showResolution;
+    const prevShowFullData = prevProps.showFullData;
 
-    // Only load image data if image changed.
-    if (currentImage !== prevImage) {
+    if (imageBuffer.get(currentImage) !== undefined
+        && imageBuffer.get(currentImage).raw === undefined) {
+      window.imgDownloadWorker.postMessage({ path: currentImage });
+    }
+
+    // Only load image data if image changed, or "show full" data
+    // changed
+    if (currentImage !== prevImage || showFullData !== prevShowFullData) {
       window.requestAnimationFrame(() => (this.renderImageData()));
     }
 
@@ -198,18 +205,22 @@ class ImageView extends React.Component {
   }
 
   renderImageData() {
-    const { currentImage, images } = this.props;
+    const { currentImage, images, showFullData } = this.props;
     const { pixiapp } = this;
     const imgData = images[currentImage];
     const hdr = imgData.hdr.braggy_hdr;
 
     pixiapp.stage.removeChildren();
-    const data = imageBuffer.get(currentImage).img;
+
+    let data = imageBuffer.get(currentImage).img;
+
+    if (imageBuffer.get(currentImage).rgbdata && showFullData) {
+      data = imageBuffer.get(currentImage).rgbdata;
+    }
+
     const img = createImageFromBuffer(data, hdr.img_width, hdr.img_height);
-    // const img = createImage(data);
 
     this.autoScale(img);
-
     this.currentImg = img;
 
     img.x = pixiapp.screen.width / 2;
@@ -241,8 +252,6 @@ class ImageView extends React.Component {
     this.container = new PIXI.Container();
     this.container.x = this.currentImg.x;
     this.container.y = this.currentImg.y;
-    // this.container.scale.x = this.scale;
-    // this.container.scale.y = this.scale;
     this.container.zIndex = 100;
 
     if (hdr.beam_ocx !== undefined && showResolution) {
@@ -278,7 +287,8 @@ function mapStateToProps({ imageView }) {
     images: imageView.images,
     currentImage: imageView.currentImage,
     autoScale: imageView.options.autoScale,
-    showResolution: imageView.options.showResolution
+    showResolution: imageView.options.showResolution,
+    showFullData: imageView.options.showFullData
   };
 }
 

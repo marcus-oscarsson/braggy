@@ -18,7 +18,9 @@ const initialState = {
   options: {
     showResolution: true,
     autoScale: true,
-    aggDownload: true
+    aggDownload: true,
+    downloadFull: true,
+    showFullData: false
   }
 };
 
@@ -118,18 +120,22 @@ export function fetchImageSuccess(data) {
 
 // REST API
 export function fetchImageRequest(path) {
-  return (dispatch) => {
-    // const { images } = getState().imageView;
+  return (dispatch, getState) => {
+    const { follow } = getState().app;
+    const { downloadFull } = getState().imageView.options;
+
 
     if (!(imageBuffer.has(path))) {
       axios.post(`${API_URL}/preload`, { path })
         .then((response) => {
           const hdr = response.data;
 
-          axios.post('/api/imageview/image-raw', { path }, { responseType: 'blob' })
+          axios.post('/api/imageview/raw-subs', { path }, { responseType: 'blob' })
             .then((resp) => {
               window.imgDataWorker.postMessage({ path, hdr, data: resp.data });
-              window.imgDownloadWorker.postMessage({ path });
+              if (!follow && downloadFull) {
+                window.imgDownloadWorker.postMessage({ path });
+              }
             });
         })
         .catch((error) => {

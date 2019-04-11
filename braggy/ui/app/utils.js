@@ -34,6 +34,7 @@ export default function initApp(store) {
 
   window.imgDownloadWorker.onmessage = function (e) {
     imageBuffer.add(e.data.path, 'raw', e.data.data);
+    imageBuffer.add(e.data.path, 'rgbdata', e.data.rgbdata);
   };
 
   window.imgDataWorker.onmessage = function (e) {

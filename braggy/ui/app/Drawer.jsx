@@ -4,6 +4,9 @@ import classNames from 'classnames';
 import Divider from '@material-ui/core/Divider';
 import SwipeableDrawer from '@material-ui/core/SwipeableDrawer';
 import List from '@material-ui/core/List';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
 import FormLabel from '@material-ui/core/FormLabel';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -13,6 +16,8 @@ import Fade from '@material-ui/core/Fade';
 import IconButton from '@material-ui/core/IconButton';
 import SettingsIcon from '@material-ui/icons/Settings';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import BlurOnIcon from '@material-ui/icons/BlurOn';
+import BlurOffIcon from '@material-ui/icons/BlurOff';
 
 import { withStyles } from '@material-ui/core/styles';
 
@@ -67,6 +72,7 @@ const styles = theme => ({
   hide: {
     display: 'none',
   },
+
 });
 
 
@@ -90,6 +96,8 @@ class ResponsiveDrawer extends React.Component {
       autoScale,
       progDownload,
       showResolution,
+      downloadFull,
+      showFullData,
       setOption,
       images,
       app,
@@ -170,9 +178,24 @@ class ResponsiveDrawer extends React.Component {
                 checked={showResolution}
                 onChange={(e) => { setOption('showResolution', e.target.checked); }}
               />
+              <FormControlLabel
+                control={(<Checkbox color="primary" />)}
+                label="Download full"
+                checked={downloadFull}
+                onChange={(e) => { setOption('downloadFull', e.target.checked); }}
+              />
             </FormGroup>
           </div>
           <Divider />
+          <List>
+            <ListItem
+              button
+              onClick={() => { setOption('showFullData', !showFullData); }}
+            >
+              <ListItemIcon>{ showFullData ? (<BlurOffIcon />) : (<BlurOnIcon />) }</ListItemIcon>
+              <ListItemText primary={showFullData ? 'Sampled data' : 'Full data'} />
+            </ListItem>
+          </List>
         </SwipeableDrawer>
         <Snackbar
           className={classes.snackBar}
@@ -204,6 +227,8 @@ function mapStateToProps({ imageView, app }) {
     autoScale: imageView.options.autoScale,
     progDownload: imageView.options.progDownload,
     showResolution: imageView.options.showResolution,
+    downloadFull: imageView.options.downloadFull,
+    showFullData: imageView.options.showFullData,
     currentImagePath: imageView.currentImage,
     images: imageView.images,
     app

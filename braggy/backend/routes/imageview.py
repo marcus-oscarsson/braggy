@@ -26,7 +26,7 @@ async def _get_image(request):
     path = request.rel_url.query['path']
     img_path = get_app().abs_data_path(path)
 
-    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
 
     return web.Response(body=_img_data, status=200,
                         content_type="image/png")
@@ -36,13 +36,13 @@ async def _get_image(request):
 async def _get_image_post(request):
     params = await request.json()
     img_path = get_app().abs_data_path(params.get("path", ""))
-    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+    _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
 
     return web.Response(body=_img_data, status=200,
                         content_type="application/octet-stream")
 
 
-@routes.post("/api/imageview/image-raw")
+@routes.post("/api/imageview/raw-subs")
 async def _get_image_post(request):
     params = await request.json()
     img_path = get_app().abs_data_path(params.get("path", ""))
@@ -54,7 +54,7 @@ async def _get_image_post(request):
                         content_type="application/octet-stream")
 
 
-@routes.post("/api/imageview/raw")
+@routes.post("/api/imageview/raw-full")
 async def _get_image_raw_data(request):
     params = await request.json()
     img_path = get_app().abs_data_path(params.get("path", ""))
@@ -112,7 +112,7 @@ async def _start_follow(request):
         "wavelength": wavelength,
         "detector_distance": detector_distance,
         "detector_radius": detector_radius
-        })
+    })
 
     app.follow_set_bl_params(wavelength, detector_distance, detector_radius)
     app.follow_start()
@@ -128,7 +128,7 @@ async def _stop_follow(request):
         "wavelength": "null",
         "detector_distance": "null",
         "detector_radius": "null"
-        })
+    })
 
     app.follow_stop()
     return web.json_response({}, status=200)

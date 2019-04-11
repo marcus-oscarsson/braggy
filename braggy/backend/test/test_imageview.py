@@ -36,7 +36,7 @@ async def test_get_image_raw_data(client):
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/api/imageview/raw", json=params)
+    resp = await client.post("/api/imageview/raw-full", json=params)
 
     data = await(resp.read())
 

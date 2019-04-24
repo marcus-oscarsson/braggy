@@ -1,6 +1,7 @@
 starlette
 fastapi
 pydantic
+aiofiles
 pillow
 fabio
 python-socketio

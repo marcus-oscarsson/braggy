@@ -1,4 +1,6 @@
-aiohttp
+starlette
+fastapi
+pydantic
 pillow
 fabio
 python-socketio

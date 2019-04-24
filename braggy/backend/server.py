@@ -1,26 +1,28 @@
 import os
-from aiohttp import web
+import socketio
 
-from braggy.backend.lib.app import init_app
-from braggy.backend.routes import filebrowser
-from braggy.backend.routes import imageview
+from fastapi import FastAPI
+from starlette.staticfiles import StaticFiles
+
+from braggy.backend.app import App
+from braggy.backend.routes import filebrowser, imageview
 from braggy.backend.routes import ws
-
-routes = web.RouteTableDef()
 
 
 def init_server():
     static_files = os.path.abspath(os.path.join(
         os.path.dirname(os.path.realpath(__file__)), "../static/"))
 
-    app = web.Application()
+    app = FastAPI(debug=True)
+    app.mount("/static", StaticFiles(directory=static_files))
+    app.include_router(filebrowser.router)
+    app.include_router(imageview.router)
 
-    app.add_routes(filebrowser.routes)
-    app.add_routes(imageview.routes)
+    sio = socketio.AsyncServer(async_mode='asgi')
+    sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 
-    app.router.add_static("/static/", os.path.join(static_files, "static/"))
+    sio.register_namespace(ws.ConnectNS('/'))
 
-    ws.sio.attach(app, '/api/socket.io')
-    init_app(static_files, ws.sio)
+    App.init_app(static_files, sio)
 
-    return app
+    return sio_asgi_app

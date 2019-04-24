@@ -1,59 +1,57 @@
 import os
+from urllib.parse import urlencode, quote_plus
 
-from braggy.backend.lib.app import get_app
+from braggy.backend.app import App
 
 
-async def test_get_preload(client):
+def test_get_preload(client):
     """Test root route"""
-    bapp = get_app()
+    bapp = App()
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/api/imageview/preload", json=params)
+    resp = client.post("/api/imageview/preload", json=params)
+    data = (resp.json())
 
-    data = await(resp.json())
-
-    assert resp.status == 200
+    assert resp.status_code == 200
     assert 'Wavelength' in data['parsed_ext_hdr']
     assert 'wavelength' in data['braggy_hdr']
 
 
-async def test_get_image(client):
+def test_get_image(client):
     """Test root route"""
-    bapp = get_app()
+    bapp = App()
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
+    resp = client.get("/api/imageview/image?%s" % urlencode(params, quote_via=quote_plus))
 
-    resp = await client.get("/api/imageview/image", params=params)
-    assert resp.status == 200
-    assert resp.content_type == 'image/png'
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type") == 'image/png'
 
 
-async def test_get_image_raw_data(client):
+def test_get_image_raw_data(client):
     """Test root route"""
-    bapp = get_app()
+    bapp = App()
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/api/imageview/raw-full", json=params)
+    resp = client.post("/api/imageview/raw-full", json=params)
 
-    data = await(resp.read())
-
-    assert resp.status == 200
-    assert resp.content_type == 'application/octet-stream'
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type") == 'application/octet-stream'
 
 
-async def test_get_image_header(client):
+def test_get_image_header(client):
     """Test root route"""
-    bapp = get_app()
+    bapp = App()
     imgpath = os.path.join(bapp.CONFIG["DATA_PATH"], "in16c_010001.cbf")
 
     params = {"path": imgpath}
-    resp = await client.post("/api/imageview/hdr", json=params)
+    resp = client.post("/api/imageview/hdr", json=params)
 
-    data = await(resp.json())
+    data = resp.json()
 
-    assert resp.status == 200
+    assert resp.status_code == 200
     assert 'Wavelength' in data['parsed_ext_hdr']
     assert 'wavelength' in data['braggy_hdr']

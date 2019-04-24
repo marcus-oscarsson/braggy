@@ -1,22 +1,12 @@
 # -*- coding:utf-8 -*-
 import logging
-
 import socketio
 
-sio = socketio.AsyncServer(async_mode='aiohttp')
+class ConnectNS(socketio.AsyncNamespace):
+    @staticmethod
+    def on_connect(sid, environ):
+        logging.debug("Websocket connected %s", sid)
 
-
-@sio.on('connect')
-def connect(sid, environ):
-    logging.debug("Websocket connected %s", sid)
-
-
-@sio.on('chat message')
-async def message(sid, data):
-    print("message ", data)
-    await sio.emit('repy', room=sid)
-
-
-@sio.on('disconnect')
-def disconnect(sid):
-    print("Websocket disconnected %s" % sid)
+    @staticmethod
+    def on_disconnect(sid):
+        logging.debug("Websocket disconnected %s", sid)

@@ -65,26 +65,16 @@ class ImageView extends React.Component {
     this.pixiapp.renderer.resize(w, h);
   }
 
-  componentDidUpdate(prevProps) {
-    const { currentImage, showResolution, showFullData } = this.props;
-    const prevImage = prevProps.currentImage;
-    const prevShowResolution = prevProps.showResolution;
-    const prevShowFullData = prevProps.showFullData;
+  componentDidUpdate() {
+    const { currentImage } = this.props;
 
     if (imageBuffer.get(currentImage) !== undefined
         && imageBuffer.get(currentImage).raw === undefined) {
       window.imgDownloadWorker.postMessage({ path: currentImage });
     }
 
-    // Only load image data if image changed, or "show full" data
-    // changed
-    if (currentImage !== prevImage || showFullData !== prevShowFullData) {
-      window.requestAnimationFrame(() => (this.renderImageData()));
-    }
-
-    if (prevShowResolution !== showResolution) {
-      window.requestAnimationFrame(() => (this.renderResolutionRings()));
-    }
+    window.requestAnimationFrame(() => (this.renderImageData()));
+    window.requestAnimationFrame(() => (this.renderResolutionRings()));
   }
 
   componentWillUnmount() {
@@ -156,7 +146,6 @@ class ImageView extends React.Component {
   onDragEnd() {
     this.alpha = 1;
     this.dragging = false;
-    // set the interaction data to null
     this.data = null;
   }
 

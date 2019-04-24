@@ -117,7 +117,7 @@ export function listDirRequest(path) {
     dispatch(setLoading(true));
     axios.post(`${API_URL}/list-dir`, { path })
       .then((response) => {
-        dispatch(listDirSuccess(response.data));
+        dispatch(listDirSuccess(response.data.items));
         dispatch(setLoading(false));
       })
       .catch((error) => {
@@ -132,9 +132,9 @@ export function listDirRequest(path) {
 export function initFileBrowserRequest() {
   return (dispatch) => {
     dispatch(setLoading(true));
-    axios.post(`${API_URL}/init`)
+    axios.get(`${API_URL}/init`)
       .then((response) => {
-        dispatch(initSuccess(response.data));
+        dispatch(initSuccess(response.data.items));
       })
       .catch((error) => {
         throw (error);

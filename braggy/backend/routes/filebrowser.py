@@ -1,29 +1,26 @@
 # -*- coding:utf-8 -*-
 import os
-from aiohttp import web
+
+from fastapi import APIRouter
+from starlette.responses import FileResponse
 
 from braggy.backend.lib import filebrowser
-from braggy.backend.lib.app import get_app
+from braggy.backend.app import App
+from braggy.backend.models import DirList, FilePath
 
-routes = web.RouteTableDef()
+router = APIRouter()
 
+@router.get('/')
+async def index():
+    static_path = App().static_path
+    return FileResponse(os.path.join(static_path, 'index.html'))
 
-@routes.get('/')
-async def index(request):
-    static_path = get_app().static_path
-    return web.FileResponse(os.path.join(static_path, 'index.html'))
+@router.post("/api/file-browser/list-dir", response_model=DirList)
+async def _list_dir(path: FilePath):
+    content = {"items": filebrowser.list_dir(path.path)}
+    return content
 
-
-@routes.post("/api/file-browser/list-dir")
-async def _list_dir(request):
-    params = await request.json()
-    content = filebrowser.list_dir(params.get("path", ""))
-
-    return web.json_response(content, status=200)
-
-
-@routes.post("/api/file-browser/init")
-async def _list_dir(request):
-    content = filebrowser.list_dir("")
-
-    return web.json_response(content, status=200)
+@router.get("/api/file-browser/init", response_model=DirList)
+async def _list_dir():
+    content = {"items": filebrowser.list_dir("")}
+    return content

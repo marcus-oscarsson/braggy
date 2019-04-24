@@ -2,128 +2,117 @@
 import zlib
 import lz4.frame
 
-from aiohttp import web
+from fastapi import APIRouter
+from starlette.responses import Response
 
 from braggy.backend.lib import readimage
-from braggy.backend.lib.app import get_app
+from braggy.backend.app import App
+from braggy.backend.models import FilePath, BLParams
 
-routes = web.RouteTableDef()
+router = APIRouter()
 
+@router.post("/api/imageview/preload")
+async def _preload_image(fp: FilePath):
+    img_path = App().abs_data_path(fp.path)
 
-@routes.post("/api/imageview/preload")
-async def _preload_image(request):
-    params = await request.json()
-    img_path = get_app().abs_data_path(params.get("path", ""))
-
-    # Call to get_image_data caches image data
+    # Call to get_image_data caches image data to enable parallel download of
+    # full and subsampled data sets. The data is read once and fecthed by
+    # simultaneoulsy by two different requests.
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
 
-    return web.json_response(_img_hdr, status=200)
+    return _img_hdr
 
 
-@routes.get("/api/imageview/image")
-async def _get_image(request):
-    path = request.rel_url.query['path']
-    img_path = get_app().abs_data_path(path)
+@router.get("/api/imageview/image")
+async def _get_image(path:str):
+    img_path = App().abs_data_path(path)
 
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
-
-    return web.Response(body=_img_data, status=200,
-                        content_type="image/png")
+    return Response(_img_data, media_type='image/png')
 
 
-@routes.post("/api/imageview/image")
-async def _get_image_post(request):
-    params = await request.json()
-    img_path = get_app().abs_data_path(params.get("path", ""))
+@router.post("/api/imageview/image")
+async def _get_image_post(fp: FilePath):
+    img_path = App().abs_data_path(fp.path)
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
 
-    return web.Response(body=_img_data, status=200,
-                        content_type="application/octet-stream")
+    return Response(_img_data,
+                    media_type="application/octet-stream")
 
 
-@routes.post("/api/imageview/raw-subs")
-async def _get_image_post(request):
-    params = await request.json()
-    img_path = get_app().abs_data_path(params.get("path", ""))
+@router.post("/api/imageview/raw-subs")
+async def _get_image_post(fp: FilePath):
+    img_path = App().abs_data_path(fp.path)
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
 
     _img_data = lz4.frame.compress(_img_data)
 
-    return web.Response(body=_img_data, status=200,
-                        content_type="application/octet-stream")
+    return Response(_img_data,
+                    media_type="application/octet-stream")
 
 
-@routes.post("/api/imageview/raw-full")
-async def _get_image_raw_data(request):
-    params = await request.json()
-    img_path = get_app().abs_data_path(params.get("path", ""))
+@router.post("/api/imageview/raw-full")
+async def _get_image_raw_data(fp: FilePath):
+    img_path = App().abs_data_path(fp.path)
 
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
     _raw_data = zlib.compress(_raw_data, 1)
 
-    return web.Response(body=_raw_data, status=200,
-                        content_type="application/octet-stream",
-                        headers={
-                            "Content-Encoding": "deflate"
-                        })
+    return Response(_raw_data,
+                    media_type="application/octet-stream",
+                    headers={
+                        "Content-Encoding": "deflate"
+                    })
 
 
-@routes.post("/api/imageview/hdr")
-async def _get_image(request):
-    params = await request.json()
-    img_path = get_app().abs_data_path(params.get("path", ""))
+@router.post("/api/imageview/hdr")
+async def _get_image(fp: FilePath):
+    img_path = App().abs_data_path(fp.path)
     _img_hdr = readimage.get_image_hdr(img_path)
 
-    return web.json_response(_img_hdr, status=200)
+    return _img_hdr
 
 
-@routes.get("/api/imageview/show-image")
-async def _show_image(request):
-    app = get_app()
+@router.get("/api/imageview/show-image")
+async def _show_image(path: str):
+    app = App()
 
     if app.follow_enabled():
-        path = request.rel_url.query['path']
-        img_path = get_app().abs_data_path(path)
+        img_path = App().abs_data_path(path)
         _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
-        await get_app().sio.emit("show-image", {"path": img_path})
+        await App().sio.emit("show-image", {"path": img_path})
         status = 200
         response = {"msg": "OK"}
     else:
         response = {"msg": "FOLLOW NOT ENABLED"}
         status = 400
 
-    return web.json_response(response, status=status)
+    return response, status
 
 
-@routes.post("/api/imageview/start-follow")
-async def _start_follow(request):
-    app = get_app()
-    params = await request.json()
+@router.post("/api/imageview/start-follow")
+async def _start_follow(p: BLParams):
+    app = App()
 
-    wavelength = params.get("wavelength", 0)
-    detector_distance = params.get("detector_distance", 0)
-    detector_radius = params.get("detector_diameter", 0)
-
-    await get_app().sio.emit("set-follow", {
+    await App().sio.emit("set-follow", {
         "follow": True,
-        "wavelength": wavelength,
-        "detector_distance": detector_distance,
-        "detector_radius": detector_radius
+        "wavelength": p.wavelength,
+        "detector_distance": p.detector_distance,
+        "detector_radius": p.detector_radius
     })
 
-    app.follow_set_bl_params(wavelength, detector_distance, detector_radius)
+    app.follow_set_bl_params(p.wavelength, p.detector_distance, p.detector_radius)
     app.follow_start()
-    return web.json_response({}, status=200)
+    return {}
 
 
-@routes.post("/api/imageview/stop-follow")
-async def _stop_follow(request):
-    app = get_app()
+@router.get("/api/imageview/stop-follow")
+async def _stop_follow():
+    app = App()
 
-    await get_app().sio.emit("set-follow", {
+    await App().sio.emit("set-follow", {
         "follow": False,
         "wavelength": "null",
         "detector_distance": "null",
@@ -131,4 +120,4 @@ async def _stop_follow(request):
     })
 
     app.follow_stop()
-    return web.json_response({}, status=200)
+    return {}

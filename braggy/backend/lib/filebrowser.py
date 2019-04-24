@@ -5,11 +5,11 @@ import os
 
 from subprocess import run, PIPE
 
-from braggy.backend.lib.app import get_app
+from braggy.backend.app import App
 
 
 def list_dir(path="."):
-    APP_CONFIG = get_app().CONFIG
+    APP_CONFIG = App().CONFIG
 
     path = os.path.normpath(path)
     abs_path = os.path.join(APP_CONFIG.get("DATA_PATH"), path)
@@ -18,7 +18,7 @@ def list_dir(path="."):
     if os.path.normpath(abs_path) == APP_CONFIG.get("DATA_PATH"):
         path, abs_path = '.', APP_CONFIG.get("DATA_PATH")
     else:
-        nodes.append({"text": "..", "fpath": os.path.join(abs_path, "..")})
+        nodes.append({"text": "..", "isLeaf": False, "fpath": os.path.join(abs_path, "..")})
 
     if os.path.isfile(abs_path):
         abs_path = os.path.dirname(abs_path)

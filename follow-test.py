@@ -25,18 +25,19 @@ if __name__ == "__main__":
         "http://localhost:3000/api/imageview/show-image?path=id29%2Fref-FAE_5_0001.cbf",
         "http://localhost:3000/api/imageview/show-image?path=id29%2Fref-FAE_1_0002.cbf",
         "http://localhost:3000/api/imageview/show-image?path=id29%2Fref-FAE_2_0002.cbf",
-        "http://localhost:3000/api/imageview/show-image?path=id29%2Fref-FAE_2_1_0002.cbf",        
+        "http://localhost:3000/api/imageview/show-image?path=id29%2Fref-FAE_2_1_0002.cbf",
     ]
 
-    data = json.dumps({"wavelength": 0, "detector_distance": 0}).encode()
+    data = json.dumps({"wavelength": 0,
+                       "detector_distance": 0,
+                       "detector_radius": 0}).encode()
 
     req = request.Request("http://localhost:3000/api/imageview/start-follow", data=data)
     request.urlopen(req).read()
 
     for url in urls:
-        time.sleep(0.1)
-        content = json.loads(request.urlopen(url).read()).get('msg')
+        time.sleep(0.2)
+        content = json.loads(request.urlopen(url).read())
         print("%s: %s" % (content, url))
 
-    req = request.Request("http://localhost:3000/api/imageview/stop-follow", data={})
-    request.urlopen(req).read()
+    req = request.urlopen("http://localhost:3000/api/imageview/stop-follow").read()

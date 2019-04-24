@@ -24,7 +24,7 @@ async def _preload_image(fp: FilePath):
 
 
 @router.get("/api/imageview/image")
-async def _get_image(path:str):
+async def _get_image(path: str):
     img_path = App().abs_data_path(path)
 
     _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")

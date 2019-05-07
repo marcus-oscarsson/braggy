@@ -11,6 +11,13 @@
       "jsx": true
     },
   },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "moduleDirectory": ["node_modules", "braggy/ui/"]
+      }
+    }
+  },
   "rules": {
     'react/prop-types': [0, { 'ignore': [], 'customValidators': [] }],
     'comma-dangle': [0, 'always-multiline'],

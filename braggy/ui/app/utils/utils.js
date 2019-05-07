@@ -1,11 +1,11 @@
 import io from 'socket.io-client';
-import { initFileBrowserRequest } from '../file-browser/file-browser-api';
-import * as ImageViewAPI from '../imageview/imageview-api';
-import * as AppAPI from './app-api';
 
-import DownloadWorker from '../imageview/image-download.worker';
-import DataWorker from '../imageview/image-data.worker';
-import imageBuffer from './buffer';
+import { initFileBrowserRequest } from 'app/file-browser/file-browser-actions';
+import * as ImageViewActions from 'app/imageview/imageview-actions';
+import * as AppActions from 'app/app-actions';
+import DownloadWorker from 'app/imageview/image-download.worker';
+import DataWorker from 'app/imageview/image-data.worker';
+import imageBuffer from 'app/utils/buffer';
 
 export default function initApp(store) {
   const socket = io.connect(`http://${document.domain}:${window.location.port}`, { path: '/api/socket.io/' });
@@ -15,11 +15,11 @@ export default function initApp(store) {
   socket.on('connect', () => (console.log('connect')));
 
   socket.on('show-image', (data) => {
-    store.dispatch(ImageViewAPI.fetchImageRequest(data.path));
+    store.dispatch(ImageViewActions.fetchImageRequest(data.path));
   });
 
   socket.on('set-follow', (data) => {
-    store.dispatch(AppAPI.setFollow(
+    store.dispatch(AppActions.setFollow(
       data.follow,
       data.wavelength,
       data.detector_distance,
@@ -38,7 +38,7 @@ export default function initApp(store) {
   };
 
   window.imgDataWorker.onmessage = function (e) {
-    store.dispatch(ImageViewAPI.fetchImageSuccess({ path: e.data.path, hdr: e.data.hdr }));
+    store.dispatch(ImageViewActions.setAndAddImage(e.data.path, e.data.hdr));
     imageBuffer.add(e.data.path, 'img', e.data.data);
   };
 }

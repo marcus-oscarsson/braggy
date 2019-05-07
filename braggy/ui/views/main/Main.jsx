@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import { Route } from 'react-router-dom';
-// import ImageView from '../imageview/imageview-widget';
-import Drawer from './Drawer';
+import Drawer from 'views/main/Drawer';
 
-import './app.css';
+import 'views/app.css';
 
 class Main extends Component {
   render() {

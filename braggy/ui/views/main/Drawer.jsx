@@ -24,10 +24,10 @@ import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import FileBrowser from '../file-browser/FileBrowser';
-import ImageView from '../imageview/ImageView';
+import FileBrowser from 'views/file-browser/FileBrowser';
+import ImageView from 'views/imageview/ImageView';
 
-import * as ImageViewAPI from '../imageview/imageview-api';
+import * as ImageViewActions from 'app/imageview/imageview-actions';
 
 const drawerWidth = 260;
 
@@ -237,7 +237,7 @@ function mapStateToProps({ imageView, app }) {
 
 
 function mapDispatchToProps(dispatch) {
-  return bindActionCreators(ImageViewAPI, dispatch);
+  return bindActionCreators(ImageViewActions, dispatch);
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(

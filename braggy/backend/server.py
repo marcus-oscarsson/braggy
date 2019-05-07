@@ -1,5 +1,6 @@
 import os
 import socketio
+import gevent
 
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
@@ -8,6 +9,9 @@ from braggy.backend.app import App
 from braggy.backend.routes import filebrowser, imageview
 from braggy.backend.routes import ws
 
+def say_hi():
+    gevent.sleep(1)
+    print("HI")
 
 def init_server():
     static_files = os.path.abspath(os.path.join(
@@ -24,5 +28,7 @@ def init_server():
     sio.register_namespace(ws.ConnectNS('/'))
 
     App.init_app(static_files, sio)
+
+    gevent.spawn(say_hi)
 
     return sio_asgi_app

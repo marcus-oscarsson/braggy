@@ -73,7 +73,7 @@ module.exports = {
   appTsConfig: resolveApp('tsconfig.json'),
   yarnLockFile: resolveApp('yarn.lock'),
   testsSetup: resolveModule(resolveApp, 'braggy/ui/setupTests'),
-  proxySetup: resolveApp('braggy/setupProxy.js'),
+  proxySetup: resolveApp('braggy/ui/setupProxy.js'),
   appNodeModules: resolveApp('node_modules'),
   publicUrl: getPublicUrl(resolveApp('package.json')),
   servedPath: getServedPath(resolveApp('package.json')),

@@ -15,7 +15,7 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
 
-import * as FileBrowserAPI from './file-browser-api';
+import * as FileBrowserActions from 'app/file-browser/file-browser-actions';
 
 const mm = require('micromatch');
 
@@ -67,10 +67,10 @@ class FileBrowser extends React.Component {
   }
 
   listItemOnClick(fileData) {
-    const { listDirRequest, onFileClick, selectFile } = this.props;
+    const { listDirRequest, onFileClick, setSelectedFile } = this.props;
 
     if (fileData.isLeaf) {
-      selectFile(fileData.fpath);
+      setSelectedFile(fileData.fpath);
       onFileClick(fileData.fpath);
     } else {
       listDirRequest(fileData.fpath);
@@ -187,7 +187,7 @@ function mapStateToProps({ fileBrowser }) {
 
 
 function mapDispatchToProps(dispatch) {
-  return bindActionCreators(FileBrowserAPI, dispatch);
+  return bindActionCreators(FileBrowserActions, dispatch);
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(

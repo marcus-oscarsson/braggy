@@ -5,7 +5,7 @@ import { withStyles } from '@material-ui/core/styles';
 
 import ReactEcharts from 'echarts-for-react';
 
-import Worker from './image-download.worker';
+import Worker from 'views/imageview/image-download.worker';
 
 
 const styles = () => ({

@@ -12,6 +12,7 @@
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
     "babel-loader": "8.0.4",
+    "babel-plugin-module-resolver": "^3.2.0",
     "babel-plugin-named-asset-import": "^0.3.0",
     "babel-preset-react-app": "^7.0.0",
     "bfj": "6.1.1",
@@ -63,6 +64,7 @@
     "react-router-dom": "^4.3.1",
     "react-treeview-mui": "^0.1.2",
     "redux": "^4.0.1",
+    "redux-actions": "^2.6.5",
     "redux-logger": "^3.0.6",
     "redux-persist": "^5.10.0",
     "redux-thunk": "^2.3.0",
@@ -135,6 +137,11 @@
   "babel": {
     "presets": [
       "react-app"
+    ],
+    "plugins": [
+      ["module-resolver", {
+        "root": ["./braggy/ui"]
+      }]
     ]
   },
   "devDependencies": {

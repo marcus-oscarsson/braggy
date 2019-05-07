@@ -1,15 +1,13 @@
 import React from 'react';
-
 import { render } from 'react-dom';
 import { Provider } from 'react-redux';
 import { ConnectedRouter } from 'connected-react-router';
-import store, { history } from './app/redux-store';
-import Main from './app/Main';
-import * as serviceWorker from './serviceWorker';
 
-import initApp from './app/utils';
-
-import './index.css';
+import store, { history } from 'app/redux-store';
+import Main from 'views/main/Main';
+import * as serviceWorker from 'serviceWorker';
+import initApp from 'app/utils/utils';
+import 'index.css';
 
 initApp(store);
 

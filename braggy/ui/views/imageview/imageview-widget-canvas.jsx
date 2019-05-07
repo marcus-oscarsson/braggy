@@ -6,7 +6,7 @@ import bgGrid from '../img/bg-grid.svg';
 import * as PIXI from 'pixi.js';
 
 
-import Worker from './image-download.worker';
+import Worker from 'views/imageview/image-download.worker';
 
 const styles = () => ({
   imageViewContainer: {

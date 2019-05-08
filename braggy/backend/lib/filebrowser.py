@@ -1,8 +1,6 @@
 # -*- coding:utf-8 -*-
 "Functions for browsing the file system"
-
 import os
-
 from subprocess import run, PIPE
 
 from braggy.backend.app import App

@@ -32,72 +32,28 @@ export const {
   SET_OPTION: (key, value) => ({ key, value }),
 }, { prefix: 'imageview' });
 
+export const ImageViewReducer = {
+  [init]: () => (
+    { ...initialState }
+  ),
+
+  [setAndAddImage]: (state, { payload: { path, hdr } }) => (
+    { ...state, images: { ...state.images, [path]: { hdr } }, currentImage: path }
+  ),
+
+  [addImage]: (state, { payload: { path, hdr } }) => (
+    { ...state, images: { ...state.images, [path]: { hdr } } }
+  ),
+
+  [setCurrentImage]: (state, { payload: { path } }) => (
+    { ...state, currentImage: path }
+  )
+};
+
 export default handleActions(
-  {
-    [init]: () => ({ ...initialState }),
-    [setAndAddImage]: (
-      state,
-      { payload: { path, hdr } }
-    ) => (
-      { ...state, images: { ...state.images, [path]: { hdr } }, currentImage: path }
-    ),
-    [addImage]: (
-      state,
-      { payload: { path, hdr } }
-    ) => ({
-      ...state, images: { ...state.images, [path]: { hdr } }
-    }),
-    [setCurrentImage]: (
-      state,
-      { payload: { path } }
-    ) => ({ ...state, currentImage: path }),
-  },
+  ImageViewReducer,
   initialState
 );
-
-
-// // Reducer
-// export default (state = initialState, action) => {
-//   switch (action.type) {
-//     case INIT:
-//       return {
-//         ...initialState
-//       };
-//     case SET_AND_ADD_IMAGE:
-//       return {
-//         ...state,
-//         images: {
-//           ...state.images,
-//           [action.path]: {
-//             hdr: action.hdr
-//           }
-//         },
-//         currentImage: action.path
-//       };
-//     case ADD_IMAGE:
-//       return {
-//         ...state,
-//         images: {
-//           ...state.images,
-//           [action.path]: {
-//             hdr: action.hdr
-//           }
-//         }
-//       };
-//     case SET_CURRENT_IMAGE:
-//       return {
-//         ...state,
-//         currentImage: action.path
-//       };
-//     case SET_OPTION:
-//       return {
-//         ...state,
-//         options: { ...state.options, [action.option]: action.value }
-//       };
-//     default:
-//       return state;
-//   }
-// };
 
 // REST API
 export function fetchImageRequest(path) {
@@ -105,25 +61,18 @@ export function fetchImageRequest(path) {
     const { follow } = getState().app;
     const { downloadFull } = getState().imageView.options;
 
+    axios.post(`${API_URL}/preload`, { path })
+      .then((response) => {
+        const hdr = response.data;
+        imageBuffer.add(path, 'hdr', hdr.braggy_hdr);
+        window.previewDataDownloadWorker.postMessage({ path, hdr });
 
-    if (!(imageBuffer.has(path))) {
-      axios.post(`${API_URL}/preload`, { path })
-        .then((response) => {
-          const hdr = response.data;
-
-          axios.post('/api/imageview/raw-subs', { path }, { responseType: 'blob' })
-            .then((resp) => {
-              window.imgDataWorker.postMessage({ path, hdr, data: resp.data });
-              if (!follow && downloadFull) {
-                window.imgDownloadWorker.postMessage({ path });
-              }
-            });
-        })
-        .catch((error) => {
-          throw (error);
-        });
-    } else {
-      dispatch(setCurrentImage(path));
-    }
+        if (!follow && downloadFull) {
+          window.fullDataDownloadWorker.postMessage({ path });
+        }
+      })
+      .catch((error) => {
+        throw (error);
+      });
   };
 }

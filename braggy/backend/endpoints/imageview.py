@@ -43,9 +43,16 @@ class ImageReader():
 
         self.router.add_api_route(
             "/raw-full",
-            self._get_image_raw_data,
+            self._get_image_raw_full,
             name="raw-full",
             methods=["POST"]
+        )
+
+        self.router.add_api_route(
+            "/raw-full-get",
+            self._get_image_raw_full_get,
+            name="raw-full-get",
+            methods=["GET"]
         )
 
         self.router.add_api_route(
@@ -113,18 +120,30 @@ class ImageReader():
                         media_type="application/octet-stream")
 
 
-    async def _get_image_raw_data(self, fp: FilePath):
+    async def _get_image_raw_full(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
 
         _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
 
-        _raw_data = zlib.compress(_raw_data, 1)
+        # _raw_data = zlib.compress(_raw_data, 6)
 
         return Response(_raw_data,
-                        media_type="application/octet-stream",
+                        media_type="application/octet-stream")
+
+
+    async def _get_image_raw_full_get(self):
+        fp = "/home/marcus/braggy-data/id29/FAE_w1_2_0051.cbf"
+        img_path = App().abs_data_path(fp)
+
+        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+
+        _raw_data = zlib.compress(_raw_data, 6)
+
+        return Response(_raw_data,
                         headers={
-                            "Content-Encoding": "deflate"
-                        })
+                            "Content-Encoding": "gzip"
+                        },
+                        media_type="application/octet-stream")
 
 
     async def _get_image_hdr(self, fp: FilePath):

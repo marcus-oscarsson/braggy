@@ -4,14 +4,14 @@ import { connect } from 'react-redux';
 import { withStyles } from '@material-ui/core/styles';
 import * as PIXI from 'pixi.js';
 
-import imageBuffer from 'app/buffer';
+import imageBuffer from 'app/utils/buffer';
+import ThreeImageView from './ThreeImageView';
 
 import {
   resolutionAt,
-  createImage,
+  createImageFromBuffer,
   createBeamCenter,
-  createResolutionRings,
-  PIXIImageView
+  createResolutionRings
 } from './imageviewlib';
 
 const styles = theme => ({
@@ -26,7 +26,8 @@ const styles = theme => ({
     padding: theme.spacing.unit,
     borderRadius: '4px',
     color: 'rgba(255, 255, 255, 1)',
-    display: 'none'
+    display: 'none',
+    userSelect: 'none',
   }
 });
 
@@ -34,40 +35,76 @@ const styles = theme => ({
 class ImageView extends React.Component {
   constructor(props) {
     super(props);
-    this.PIXIImageView = PIXIImageView()
+    this.autoScale = this.autoScale.bind(this);
+    this.initPixi = this.initPixi.bind(this);
+    this.renderImageDataPixi = this.renderImageDataPixi.bind(this);
+    this.renderImageDataThree = this.renderImageDataThree.bind(this);
+    this.renderResolutionRingsPixi = this.renderResolutionRingsPixi.bind(this);
+
+    this.onMouseWheel = this.onMouseWheel.bind(this);
+    this.onMouseOver = this.onMouseOver.bind(this);
+    this.onMouseOut = this.onMouseOut.bind(this);
+    this.onMouseMove = this.onMouseMove.bind(this);
+    this.onDragStart = this.onDragStart.bind(this);
+
+    this.canvasContainerRef = React.createRef();
+    this.infoDisplayDivRef = React.createRef();
+    this.pixiapp = new PIXI.Application({ transparent: true, roundPixels: true });
+    PIXI.settings.SCALE_MODE = 0;
+    this.currentImg = null;
+    this.container = null;
+    this.scale = 1;
+    this.mouseOverEvent = null;
+    this.zoomMouseX = null;
+    this.zoomMouseY = null;
+
+    // THREE
+    this.stats = null;
+    this.scene = null;
+    this.camera = null;
   }
 
   componentDidMount() {
-    const w = this.canvasContainerRef.current.clientWidth;
-    const h = this.canvasContainerRef.current.clientHeight;
-    
-    this.PIXIImageView.resize(w, h);
-    this.PIXIImageView.attachTo(this.canvasContainerRef.current);
+    // const w = this.canvasContainerRef.current.clientWidth;
+    // const h = this.canvasContainerRef.current.clientHeight;
+
+    // this.initPixi(w, h);
+    this.threeImageView = new ThreeImageView(this.canvasContainerRef.current);
+    // this.threeImageView.init(w, h);
   }
 
-  componentDidUpdate(prevProps) {
-    const { currentImage, showResolution } = this.props;
-    const prevImage = prevProps.currentImage;
-    const prevShowResolution = prevProps.showResolution;
+  componentDidUpdate() {
+    const { currentImage } = this.props;
 
-    // Only load image data if image changed.
-    if (currentImage !== prevImage) {
-      window.requestAnimationFrame(() => (this.renderImageData()));
+    if (imageBuffer.get(currentImage) !== undefined
+       && imageBuffer.get(currentImage).raw === undefined) {
+      window.fullDataDownloadWorker.postMessage({ path: currentImage });
     }
 
-    if (prevShowResolution !== showResolution) {
-      window.requestAnimationFrame(() => (this.renderResolutionRings()));
-    }
+    this.renderImageDataThree();
+    // this.renderImageDataPixi();
+
+    // window.requestAnimationFrame(() => (this.renderImageDataPixi()));
+    // window.requestAnimationFrame(() => (this.renderResolutionRingsPixi()));
   }
 
-  componentWillUnmount() {
-    this.pixiapp.view.removeEventListener(this.onMouseWheel);
-  }
+  // componentWillUnmount() {
+  //  this.pixiapp.view.removeEventListener(this.onMouseWheel);
+  // }
 
   onMouseWheel(e) {
-    if (this.mouseOverEvent) {
-      // debugger;
+    const zoomOutDisabled = this.pixiapp.screen.height >= Math.floor(this.currentImg.height);
 
+    if (e.wheelDelta < 0 && zoomOutDisabled) {
+      this.currentImg.x = this.pixiapp.screen.width / 2;
+      this.currentImg.y = this.pixiapp.screen.height / 2;
+
+      this.container.x = this.pixiapp.screen.width / 2;
+      this.container.y = this.pixiapp.screen.height / 2;
+      return;
+    }
+
+    if (this.mouseOverEvent) {
       if (this.zoomMouseX !== e.offsetX && this.zoomMouseY !== e.offsetY) {
         this.zoomMouseX = e.offsetX;
         this.zoomMouseY = e.offsetY;
@@ -80,11 +117,20 @@ class ImageView extends React.Component {
         this.container.y += dy;
       }
 
-      this.scale += (e.wheelDelta * 0.001);
+      this.scale += Math.sign(e.wheelDelta) / 2;
+
+      if (this.scale > 20) {
+        this.scale = 60;
+      }
+
+      if (this.scale === 60 && e.wheelDelta < 0) {
+        this.scale = 20;
+      }
+
       this.currentImg.scale.x = this.scale;
       this.currentImg.scale.y = this.scale;
-      this.container.scale.x = this.scale;
-      this.container.scale.y = this.scale;
+
+      this.renderResolutionRingsPixi();
     }
   }
 
@@ -98,18 +144,19 @@ class ImageView extends React.Component {
   }
 
   onDragStart(event) {
-    this.dragging = true;
-    this.dragStartPos = event.data.getLocalPosition(this.parent);
-    this.dragStartOx = this.dragStartPos.x - this.x;
-    this.dragStartOy = this.dragStartPos.y - this.y;
+    const dragEnabled = this.pixiapp.screen.height < Math.floor(this.currentImg.height);
 
-    return event;
+    if (dragEnabled) {
+      this.currentImg.dragging = true;
+      this.currentImg.dragStartPos = event.data.getLocalPosition(this.currentImg.parent);
+      this.currentImg.dragStartOx = this.currentImg.dragStartPos.x - this.currentImg.x;
+      this.currentImg.dragStartOy = this.currentImg.dragStartPos.y - this.currentImg.y;
+    }
   }
 
   onDragEnd() {
     this.alpha = 1;
     this.dragging = false;
-    // set the interaction data to null
     this.data = null;
   }
 
@@ -157,17 +204,29 @@ class ImageView extends React.Component {
     }
   }
 
-  renderImageData() {
-    const { currentImage } = this.props;
+  initPixi(w, h) {
+    this.pixiapp.view.addEventListener('mousewheel', this.onMouseWheel, false);
+    this.canvasContainerRef.current.appendChild(this.pixiapp.view);
+    this.pixiapp.renderer.autoResize = true;
+    this.pixiapp.renderer.resize(w, h);
+  }
+
+  renderImageDataPixi() {
+    const { currentImage, images, showFullData } = this.props;
     const { pixiapp } = this;
+    const imgData = images[currentImage];
 
-    pixiapp.stage.removeChildren();
+    const hdr = imgData.hdr.braggy_hdr;
 
-    const data = imageBuffer.get(currentImage).img;
-    const img = createImage(data);
+    let data = imageBuffer.get(currentImage).img;
+
+    if (imageBuffer.get(currentImage).rgbdata && showFullData) {
+      data = imageBuffer.get(currentImage).rgbdata;
+    }
+
+    const img = createImageFromBuffer(data, hdr.img_width, hdr.img_height);
 
     this.autoScale(img);
-
     this.currentImg = img;
 
     img.x = pixiapp.screen.width / 2;
@@ -182,11 +241,11 @@ class ImageView extends React.Component {
     img.on('pointermove', this.onMouseMove);
 
     pixiapp.stage.addChild(img);
-    this.renderResolutionRings();
+    this.renderResolutionRingsPixi();
     imageBuffer.pop(currentImage);
   }
 
-  renderResolutionRings() {
+  renderResolutionRingsPixi() {
     const { images, currentImage, showResolution } = this.props;
     const imgData = images[currentImage];
     const hdr = imgData.hdr.braggy_hdr;
@@ -199,18 +258,42 @@ class ImageView extends React.Component {
     this.container = new PIXI.Container();
     this.container.x = this.currentImg.x;
     this.container.y = this.currentImg.y;
-    this.container.scale.x = this.scale;
-    this.container.scale.y = this.scale;
     this.container.zIndex = 100;
 
     if (hdr.beam_ocx !== undefined && showResolution) {
       const beamCenter = createBeamCenter(hdr);
-      const rings = createResolutionRings(hdr);
+      const rings = createResolutionRings(hdr, this.scale);
       this.container.addChild(beamCenter);
       this.container.addChild(...rings);
     }
 
     pixiapp.stage.addChild(this.container);
+  }
+
+  renderImageDataThree() {
+    const { currentImage, images } = this.props;
+    const imgData = images[currentImage];
+    const hdr = imgData.hdr.braggy_hdr;
+    const img = imageBuffer.get(currentImage);
+    let data = [];
+
+    if (!imgData || img === undefined) {
+      return;
+    }
+
+    data = img.rgbdata;
+
+    if (!data) {
+      return;
+    }
+
+    this.threeImageView.setRawData(img.raw);
+    this.threeImageView.setImageHdr(
+      hdr.beam_ocx, hdr.beam_ocy, hdr.pxxpm, hdr.pxypm,
+      hdr.detector_distance, hdr.wavelength
+    );
+
+    this.threeImageView.renderImageData(img.rgbdata, hdr.img_width, hdr.img_height);
   }
 
   render() {
@@ -236,7 +319,8 @@ function mapStateToProps({ imageView }) {
     images: imageView.images,
     currentImage: imageView.currentImage,
     autoScale: imageView.options.autoScale,
-    showResolution: imageView.options.showResolution
+    showResolution: imageView.options.showResolution,
+    showFullData: imageView.options.showFullData
   };
 }
 

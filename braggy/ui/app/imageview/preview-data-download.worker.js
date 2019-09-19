@@ -6,11 +6,10 @@ import lz4 from 'lz4js';
 self.addEventListener('message', (event) => {
   const hdr = event.data.hdr;
   const path = event.data.path;
- 
-  const fileReader = new FileReader();
 
-  fileReader.onload = (event) => {
-    const compressed = new Uint8Array(event.target.result);
+  axios.post('/api/imageview/raw-subs', { path }, { responseType: 'arraybuffer' })
+  .then((response) => {
+    const compressed = new Uint8Array(response.data);
     const data = lz4.decompress(compressed);
     const rgbdata = new Uint8Array(data.length * 4);
 
@@ -28,8 +27,8 @@ self.addEventListener('message', (event) => {
 
     self.postMessage({ path, hdr, data: rgbdata });
     return true;
-  };
-
-  fileReader.readAsArrayBuffer(event.data.data);
+  })
+  .catch((error) => {
+    throw (error);
+  });
 })
-

@@ -3,8 +3,8 @@ import io from 'socket.io-client';
 import { initFileBrowserRequest } from 'app/file-browser/file-browser-actions';
 import * as ImageViewActions from 'app/imageview/imageview-actions';
 import * as AppActions from 'app/app-actions';
-import DownloadWorker from 'app/imageview/image-download.worker';
-import DataWorker from 'app/imageview/image-data.worker';
+import DownloadWorker from 'app/imageview/full-data-download.worker';
+import DataWorker from 'app/imageview/preview-data-download.worker';
 import imageBuffer from 'app/utils/buffer';
 
 export default function initApp(store) {
@@ -29,16 +29,35 @@ export default function initApp(store) {
 
   socket.on('disconnect', () => (console.log('disconnect')));
 
-  window.imgDownloadWorker = new DownloadWorker();
-  window.imgDataWorker = new DataWorker();
+  window.fullDataDownloadWorker = new DownloadWorker();
+  window.previewDataDownloadWorker = new DataWorker();
 
-  window.imgDownloadWorker.onmessage = function (e) {
-    imageBuffer.add(e.data.path, 'raw', e.data.data);
-    imageBuffer.add(e.data.path, 'rgbdata', e.data.rgbdata);
+  window.fullDataDownloadWorker.onmessage = function (e) {
+    const { follow } = store.getState().app;
+    const { downloadFull } = store.getState().imageView.options;
+
+    if (!follow && downloadFull) {
+      imageBuffer.add(e.data.path, 'raw', e.data.data);
+      imageBuffer.add(e.data.path, 'rgbdata', e.data.rgbdata);
+
+      const data = imageBuffer.get(e.data.path);
+      const { hdr } = data;
+
+      window.twoDImageView.render(data.rgbdata, data.raw, hdr);
+    }
   };
 
-  window.imgDataWorker.onmessage = function (e) {
-    store.dispatch(ImageViewActions.setAndAddImage(e.data.path, e.data.hdr));
-    imageBuffer.add(e.data.path, 'img', e.data.data);
+  window.previewDataDownloadWorker.onmessage = function (e) {
+    const { follow } = store.getState().app;
+    const { downloadFull } = store.getState().imageView.options;
+
+    if (follow || !downloadFull) {
+      store.dispatch(ImageViewActions.setAndAddImage(e.data.path, e.data.hdr));
+      imageBuffer.add(e.data.path, 'img', e.data.data);
+      const data = imageBuffer.get(e.data.path);
+      const { hdr } = data;
+
+      window.twoDImageView.render(data.img, data.img, hdr);
+    }
   };
 }

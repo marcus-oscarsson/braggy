@@ -3,7 +3,7 @@ import axios from 'axios';
 // Respond to message from parent thread
 self.addEventListener('message', (event) => {
   const path = event.data.path;
-
+  
   if(path !== undefined) {
     axios.post('/api/imageview/raw-full', { path }, { responseType: 'arraybuffer' })
       .then((response) => {

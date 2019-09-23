@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
-
 import os
 import socketio
+import logging
 
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
@@ -9,8 +9,13 @@ from starlette.staticfiles import StaticFiles
 from braggy.backend.app import App
 from braggy.backend.routes import main
 from braggy.backend.routes import ws
-from braggy.backend.endpoints.filebrowser import FileBrowser
-from braggy.backend.endpoints.imageview import ImageReader
+from braggy.backend.routes.filebrowser import FileBrowser
+from braggy.backend.routes.imageview import ImageReader
+
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger('braggy')
+logger.setLevel(logging.DEBUG)
 
 def init_server():
     static_files = os.path.abspath(os.path.join(

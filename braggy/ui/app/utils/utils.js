@@ -37,13 +37,16 @@ export default function initApp(store) {
     const { downloadFull } = store.getState().imageView.options;
 
     if (!follow && downloadFull) {
-      imageBuffer.add(e.data.path, 'raw', e.data.data);
-      imageBuffer.add(e.data.path, 'rgbdata', e.data.rgbdata);
+      const { hdr } = imageBuffer.get(e.data.path);
+      const rawData = e.data.data;
+      const rgbData = e.data.rgbdata;
 
-      const data = imageBuffer.get(e.data.path);
-      const { hdr } = data;
 
-      window.twoDImageView.render(data.rgbdata, data.raw, hdr);
+      imageBuffer.add(e.data.path, 'raw', rawData);
+      imageBuffer.add(e.data.path, 'rgbdata', rgbData);
+
+      store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
+      window.twoDImageView.render(rgbData, rawData, hdr);
     }
   };
 
@@ -52,12 +55,13 @@ export default function initApp(store) {
     const { downloadFull } = store.getState().imageView.options;
 
     if (follow || !downloadFull) {
-      store.dispatch(ImageViewActions.setAndAddImage(e.data.path, e.data.hdr));
-      imageBuffer.add(e.data.path, 'img', e.data.data);
-      const data = imageBuffer.get(e.data.path);
-      const { hdr } = data;
+      const { hdr } = imageBuffer.get(e.data.path);
+      const rgbData = e.data.data;
 
-      window.twoDImageView.render(data.img, data.img, hdr);
+      imageBuffer.add(e.data.path, 'img', rgbData);
+
+      store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
+      window.twoDImageView.render(rgbData, rgbData, hdr);
     }
   };
 }

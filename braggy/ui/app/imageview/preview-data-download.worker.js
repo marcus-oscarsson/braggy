@@ -4,7 +4,6 @@ import lz4 from 'lz4js';
 
 // Respond to message from parent thread
 self.addEventListener('message', (event) => {
-  const hdr = event.data.hdr;
   const path = event.data.path;
 
   axios.post('/api/imageview/raw-subs', { path }, { responseType: 'arraybuffer' })
@@ -25,7 +24,7 @@ self.addEventListener('message', (event) => {
       rgbdata[k + 3] = alpha;
     }
 
-    self.postMessage({ path, hdr, data: rgbdata });
+    self.postMessage({ path, data: rgbdata });
     return true;
   })
   .catch((error) => {

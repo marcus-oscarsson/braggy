@@ -5,6 +5,8 @@ import configparser
 import logging
 import sys
 
+from braggy.backend.lib.readimage import FileReader, CBFFormatHandler
+
 class App():
     instance = None
 
@@ -88,6 +90,9 @@ class App():
             self.read_config()
             self.sio = sio
             self.static_path = static_fpath
+
+            self.file_reader = FileReader()
+            self.file_reader.register_handler(CBFFormatHandler())
 
     def __new__(cls, *args, **kwargs):
         if not App.instance:

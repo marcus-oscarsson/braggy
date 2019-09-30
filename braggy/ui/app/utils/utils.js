@@ -39,14 +39,14 @@ export default function initApp(store) {
     if (!follow && downloadFull) {
       const { hdr } = imageBuffer.get(e.data.path);
       const rawData = e.data.data;
-      const rgbData = e.data.rgbdata;
-
 
       imageBuffer.add(e.data.path, 'raw', rawData);
-      imageBuffer.add(e.data.path, 'rgbdata', rgbData);
 
       store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
-      window.twoDImageView.render(rgbData, rawData, hdr);
+      window.twoDImageView.render(rawData, hdr, 'float32');
+      store.dispatch(ImageViewActions.setOption('valueRange', [hdr.min, hdr.mean * 50]));
+      store.dispatch(ImageViewActions.setOption('valueRangeLimit', [hdr.min, hdr.mean * 100, hdr.mean]));
+      window.twoDImageView.setValueRange(hdr.min, hdr.mean * 50);
     }
   };
 
@@ -58,10 +58,13 @@ export default function initApp(store) {
       const { hdr } = imageBuffer.get(e.data.path);
       const rgbData = e.data.data;
 
-      imageBuffer.add(e.data.path, 'img', rgbData);
+      imageBuffer.add(e.data.path, 'preview', rgbData);
 
       store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
-      window.twoDImageView.render(rgbData, rgbData, hdr);
+      window.twoDImageView.render(rgbData, hdr, 'int32');
+      store.dispatch(ImageViewActions.setOption('valueRange', [hdr.min, hdr.mean * 50]));
+      store.dispatch(ImageViewActions.setOption('valueRangeLimit', [hdr.min, hdr.mean * 100, hdr.mean]));
+      window.twoDImageView.setValueRange(hdr.min, hdr.mean * 50);
     }
   };
 }

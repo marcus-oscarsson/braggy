@@ -3,70 +3,16 @@ import Stats from 'stats.js';
 import * as d3 from 'd3';
 
 /* eslint-disable */
-export const TemperatureShader = {
-  uniforms: {
-  },
-  vertexShader: [
-    'varying vec2 vUv;',
-    'void main() {',
-       'vUv = uv;',
-       'gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
-    '}'
-  ].join('\n'),
-  fragmentShader: [
-    'uniform sampler2D data;',
-    'uniform float cmap_min;',
-    'uniform float cmap_max;',
-    'varying vec2 vUv;',
-
-    'vec4 cmapTemperature(float normValue) {',
-        'float red = clamp(4. * normValue - 2., 0., 1.);',
-        'float green = 1. - clamp(4. * abs(normValue - 0.5) - 1., 0., 1.);',
-        'float blue = 1. - clamp(4. * normValue - 1., 0., 1.);',
-        'return vec4(red, green, blue, 1.);',
-    '}',
-
-    'void main() {',
-        'vec4 color = texture2D(data, vUv);',
-        'vec3 c = color.rgb;',
-    '    gl_FragColor = cmapTemperature((c.r - cmap_min)/(cmap_max - cmap_min));',
-    '}'
-  ].join('\n')
-};
-
-export const GreyShader = {
-  uniforms: {
-  },
-  vertexShader: [
-    'varying vec2 vUv;',
-    'void main() {',
-        'vUv = uv;',
-        'gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
-    '}'
-  ].join('\n'),
-  fragmentShader: [
-    'uniform sampler2D data;',
-    'varying vec2 vUv;',
-    'uniform float cmap_min;',
-    'uniform float cmap_max;',
-
-    'float normValue(float val) {',
-       'float normValue = clamp((val - cmap_min)/(cmap_max - cmap_min), 0.0, 1.0);',
-       'return normValue;',
-    '}',
- 
-    'void main() {',
-        'vec4 color = texture2D(data, vUv);',
-        'vec3 c = color.rgb;',
-        'c.r = (1.0 - ( 0.299 * normValue(color.r) + 0.587 * normValue(color.g) + 0.114 * normValue(color.b)));',
-        'c.g = (1.0 - ( 0.299 * normValue(color.r) + 0.587 * normValue(color.g)  + 0.114 * normValue(color.b)));',
-        'c.b = (1.0 - ( 0.299 * normValue(color.r) + 0.587 * normValue(color.g) + 0.114 * normValue(color.b)));',
-        'gl_FragColor = vec4(c.rgb, color.a);',
-    '}'
-  ].join('\n')
-};
-
 export const StdShader = {
+  cmaps: {
+    'viridis': 0,
+    'plasma': 1,
+    'magma': 2,
+    'inferno': 3,
+    'temperature': 4,
+    'grey': 5,
+    'greywithred': 6,
+  },
   uniforms: {
   },
   vertexShader: [
@@ -81,19 +27,117 @@ export const StdShader = {
     'varying vec2 vUv;',
     'uniform float cmap_min;',
     'uniform float cmap_max;',
+    'uniform int cmap;',
 
     'float normValue(float val) {',
         'float normValue = clamp((val - cmap_min)/(cmap_max - cmap_min), 0.0, 1.0);',
         'return normValue;',
     '}',
 
+    'vec3 viridis(float t) {',
+        'const vec3 c0 = vec3(0.2777273272234177, 0.005407344544966578, 0.3340998053353061);',
+        'const vec3 c1 = vec3(0.1050930431085774, 1.404613529898575, 1.384590162594685);',
+        'const vec3 c2 = vec3(-0.3308618287255563, 0.214847559468213, 0.09509516302823659);',
+        'const vec3 c3 = vec3(-4.634230498983486, -5.799100973351585, -19.33244095627987);',
+        'const vec3 c4 = vec3(6.228269936347081, 14.17993336680509, 56.69055260068105);',
+        'const vec3 c5 = vec3(4.776384997670288, -13.74514537774601, -65.35303263337234);',
+        'const vec3 c6 = vec3(-5.435455855934631, 4.645852612178535, 26.3124352495832);',
+        'return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));',
+    '}',
+
+    'vec3 plasma(float t) {',
+
+      'const vec3 c0 = vec3(0.05873234392399702, 0.02333670892565664, 0.5433401826748754);',
+      'const vec3 c1 = vec3(2.176514634195958, 0.2383834171260182, 0.7539604599784036);',
+      'const vec3 c2 = vec3(-2.689460476458034, -7.455851135738909, 3.110799939717086);',
+      'const vec3 c3 = vec3(6.130348345893603, 42.3461881477227, -28.51885465332158);',
+      'const vec3 c4 = vec3(-11.10743619062271, -82.66631109428045, 60.13984767418263);',
+      'const vec3 c5 = vec3(10.02306557647065, 71.41361770095349, -54.07218655560067);',
+      'const vec3 c6 = vec3(-3.658713842777788, -22.93153465461149, 18.19190778539828);',
+  
+      'return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));',
+    '}',
+
+    'vec3 magma(float t) {',
+  
+      'const vec3 c0 = vec3(-0.002136485053939582, -0.000749655052795221, -0.005386127855323933);',
+      'const vec3 c1 = vec3(0.2516605407371642, 0.6775232436837668, 2.494026599312351);',
+      'const vec3 c2 = vec3(8.353717279216625, -3.577719514958484, 0.3144679030132573);',
+      'const vec3 c3 = vec3(-27.66873308576866, 14.26473078096533, -13.64921318813922);',
+      'const vec3 c4 = vec3(52.17613981234068, -27.94360607168351, 12.94416944238394);',
+      'const vec3 c5 = vec3(-50.76852536473588, 29.04658282127291, 4.23415299384598);',
+      'const vec3 c6 = vec3(18.65570506591883, -11.48977351997711, -5.601961508734096);',
+  
+      'return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));',
+    '}',
+  
+    'vec3 inferno(float t) {',
+
+      'const vec3 c0 = vec3(0.0002189403691192265, 0.001651004631001012, -0.01948089843709184);',
+      'const vec3 c1 = vec3(0.1065134194856116, 0.5639564367884091, 3.932712388889277);',
+      'const vec3 c2 = vec3(11.60249308247187, -3.972853965665698, -15.9423941062914);',
+      'const vec3 c3 = vec3(-41.70399613139459, 17.43639888205313, 44.35414519872813);',
+      'const vec3 c4 = vec3(77.162935699427, -33.40235894210092, -81.80730925738993);',
+      'const vec3 c5 = vec3(-71.31942824499214, 32.62606426397723, 73.20951985803202);',
+      'const vec3 c6 = vec3(25.13112622477341, -12.24266895238567, -23.07032500287172);',
+  
+      'return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));',
+    '}',
+
+    'vec3 temperature(float t) {',
+        'float red = clamp(4. * t - 2., 0., 1.);',
+        'float green = 1. - clamp(4. * abs(t - 0.5) - 1., 0., 1.);',
+        'float blue = 1. - clamp(4. * t - 1., 0., 1.);',
+        'return vec3(red, green, blue);',
+    '}',
+
+    'vec3 grey(float t) {',
+        'float red = (1.0 - t);',
+        'float green = (1.0 - t);',
+        'float blue = (1.0 - t);',
+        'return vec3(red, green, blue);',
+    '}',
+
+    'vec3 greywithred(float t) {',
+        'float red;',
+        'float green;',
+        'float blue;',
+        'float normT = normValue(t);',
+
+        'if (t < 0.0) {',
+            'red = 1.0;',
+            'green = normT;',
+            'blue = normT;',
+        '} else {',
+            'red = (1.0 - normT);',
+            'green = (1.0 - normT);',
+            'blue = (1.0 - normT);',
+        '}',
+
+        'return vec3(red, green, blue);',
+    '}',
+
     'void main() {',
         'vec4 color = texture2D(data, vUv);',
-        'vec3 c = color.rgb;',
-        'c.r = normValue(color.r);',
-        'c.g = normValue(color.g);',
-        'c.b = normValue(color.b);',
-        'gl_FragColor = vec4(c.rgb, color.a);',
+        'vec4 c;',
+        'if (cmap == 0) {',
+            'c = vec4(viridis(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 1) {',
+            'c = vec4(plasma(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 2) {',
+            'c = vec4(magma(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 3) {',
+            'c = vec4(inferno(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 4) {',
+            'c = vec4(temperature(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 5) {',
+            'c = vec4(grey(normValue(color.r)).rgb, color.a);',
+        '} else if (cmap == 6) {',
+            'c = vec4(greywithred(color.r).rgb, color.a);',
+        '} else  {',
+            'c = vec4(viridis(normValue(color.r)).rgb, color.a);',
+        '}',
+        'gl_FragColor = c;',
     '}'
   ].join('\n')
 };
@@ -172,9 +216,10 @@ export default class TwoDImageView {
     this.container = container;
     this.mouseOverInfoDiv = new InfoDiv('imgeview-info-div');
     this.container.appendChild(this.mouseOverInfoDiv.dom);
-    this.cmap_min = 0.0;
-    this.cmap_max = 1.0;
     this.cmap = StdShader;
+    this.cmap_min = 0;
+    this.cmap_max = 1;
+    this.cmap = 0;
 
     this.rawData = null;
     this.data = null;
@@ -216,6 +261,30 @@ export default class TwoDImageView {
     this.imageHDR.pxpmmY = pxppmY;
     this.imageHDR.detectorDistance = detectorDistance;
     this.imageHDR.wavelength = wavelength;
+  }
+
+  setValueRange = (min, max) => {
+    this.cmap_min = min;
+    this.cmap_max = max;
+
+    if (this.dataMaterial) {
+      this.dataMaterial.uniforms.cmap_min.value = min;
+      this.dataMaterial.uniforms.cmap_max.value = max;
+      this.dataMaterial.needsUpdate = true;
+      this.scene.needsUpdate = true;
+      this.render.needsUpdate = true;
+    }
+  }
+
+  setColormap = (cmap) => {
+    this.cmap = cmap;
+
+    if (this.dataMaterial) {
+      this.dataMaterial.uniforms.cmap.value = cmap;
+      this.dataMaterial.needsUpdate = true;
+      this.scene.needsUpdate = true;
+      this.render.needsUpdate = true;
+    }
   }
 
   init = () => {
@@ -412,7 +481,7 @@ export default class TwoDImageView {
     geometry.uvsNeedUpdate = true;
   }
 
-  renderImageData = (data, width, height) => {
+  renderImageData = (data, width, height, dtype = 'float32') => {
     // Clear already existing scene
     this.data = data;
     this.imageWidth = width;
@@ -430,12 +499,22 @@ export default class TwoDImageView {
     this.geometry = new THREE.ShapeGeometry(rectShape);
     this.createUVMapping(this.geometry);
 
+    let threeDtype = THREE.UnsignedByteType;
+    let threeFormat = THREE.RGBAFormat;
+    let shader = this.cmap;
+
+    if (dtype === 'float32') {
+      threeDtype = THREE.FloatType;
+      threeFormat = THREE.LuminanceFormat;
+      shader = StdShader;
+    }
+
     this.dataTexture = new THREE.DataTexture(
       data,
       width,
       height,
-      THREE.RGBAFormat,
-      THREE.UnsignedByteType,
+      threeFormat,
+      threeDtype,
       THREE.UVMapping
     );
 
@@ -450,12 +529,13 @@ export default class TwoDImageView {
     this.dataMaterial = new THREE.ShaderMaterial({
       transparent: true,
       uniforms: {
-        cmap_min: { value: 0.0 },
-        cmap_max: { value: 1.0 },
+        cmap: { value: this.cmap },
+        cmap_min: { value: this.cmap_min },
+        cmap_max: { value: this.cmap_max },
         data: { value: this.dataTexture },
       },
-      vertexShader: this.cmap.vertexShader,
-      fragmentShader: this.cmap.fragmentShader
+      vertexShader: shader.vertexShader,
+      fragmentShader: shader.fragmentShader
     });
 
     this.dataMaterial.needsUpdate = true;
@@ -472,7 +552,7 @@ export default class TwoDImageView {
     this.scene.needsUpdate = true;
   }
 
-  render = (rgbBuffer, rawDataBuffer, imgHeader) => {
+  render = (rawDataBuffer, imgHeader, dtype) => {
     this.setRawData(rawDataBuffer);
 
     this.setImageHdr(
@@ -485,9 +565,10 @@ export default class TwoDImageView {
     );
 
     this.renderImageData(
-      rgbBuffer,
+      rawDataBuffer,
       imgHeader.img_width,
-      imgHeader.img_height
+      imgHeader.img_height,
+      dtype
     );
   }
 }

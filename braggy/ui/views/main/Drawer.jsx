@@ -4,9 +4,6 @@ import classNames from 'classnames';
 import Divider from '@material-ui/core/Divider';
 import SwipeableDrawer from '@material-ui/core/SwipeableDrawer';
 import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
 import FormLabel from '@material-ui/core/FormLabel';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -16,8 +13,11 @@ import Fade from '@material-ui/core/Fade';
 import IconButton from '@material-ui/core/IconButton';
 import SettingsIcon from '@material-ui/icons/Settings';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
-import BlurOnIcon from '@material-ui/icons/BlurOn';
-import BlurOffIcon from '@material-ui/icons/BlurOff';
+import Slider from '@material-ui/core/Slider';
+import Typography from '@material-ui/core/Typography';
+import Select from '@material-ui/core/Select';
+import InputLabel from '@material-ui/core/InputLabel';
+import FormControl from '@material-ui/core/FormControl';
 
 import { withStyles } from '@material-ui/core/styles';
 
@@ -83,24 +83,32 @@ class ResponsiveDrawer extends React.Component {
 
   handleDrawerOpen = () => {
     this.setState({ open: true });
-  };
+  }
 
   handleDrawerClose = () => {
     this.setState({ open: false });
-  };
+  }
+
+  log10 = value => ([Math.log(value[0]) / Math.log(10), Math.log(value[1]) / Math.log(10)])
+
+  pow10 = x => (x ** 10)
+
+  valueLabelFormat = (x) => {
+    const [coefficient, exponent] = this.pow10(x)
+      .toExponential()
+      .split('e')
+      .map(item => Number(item));
+    return `${Math.round(coefficient)}e^${exponent}`;
+  }
 
   render() {
     const {
       classes,
-      fetchImageRequest,
-      autoScale,
-      progDownload,
-      showResolution,
-      downloadFull,
-      showFullData,
+      options,
       setOption,
       images,
       app,
+      fetchImageRequest,
       currentImagePath
     } = this.props;
 
@@ -162,40 +170,74 @@ class ResponsiveDrawer extends React.Component {
             <FormGroup>
               <FormControlLabel
                 control={(<Checkbox color="primary" />)}
-                label="Auto scale"
-                checked={autoScale}
-                onChange={(e) => { setOption('autoScale', e.target.checked); }}
-              />
-              <FormControlLabel
-                control={(<Checkbox color="primary" />)}
-                label="Progressive download"
-                checked={progDownload}
-                onChange={(e) => { setOption('progDownload', e.target.checked); }}
-              />
-              <FormControlLabel
-                control={(<Checkbox color="primary" />)}
                 label="Show resolution"
-                checked={showResolution}
+                checked={options.showResolution}
                 onChange={(e) => { setOption('showResolution', e.target.checked); }}
               />
               <FormControlLabel
                 control={(<Checkbox color="primary" />)}
-                label="Download full"
-                checked={downloadFull}
-                onChange={(e) => { setOption('downloadFull', e.target.checked); }}
+                label="Show full data"
+                checked={options.showFull}
+                onChange={(e) => { setOption('showFull', e.target.checked); }}
               />
             </FormGroup>
           </div>
           <Divider />
-          <List>
-            <ListItem
-              button
-              onClick={() => { setOption('showFullData', !showFullData); }}
-            >
-              <ListItemIcon>{ showFullData ? (<BlurOffIcon />) : (<BlurOnIcon />) }</ListItemIcon>
-              <ListItemText primary={showFullData ? 'Sampled data' : 'Full data'} />
-            </ListItem>
-          </List>
+          <div className={classes.optionsForm}>
+            <FormControl className={classes.formControl}>
+              <InputLabel htmlFor="age-native-simple">Colormap</InputLabel>
+              <Select
+                native
+                value={options.currentCmap}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  window.twoDImageView.setColormap(val);
+                  setOption('currentCmap', val);
+                }}
+                inputProps={{
+                  name: 'Colormap',
+                  id: 'cmap',
+                }}
+              >
+                {Object.keys(options.availableCmaps).map(cmapName => (
+                  (<option value={options.availableCmaps[cmapName]}>{cmapName}</option>)
+                ))
+                }
+              </Select>
+            </FormControl>
+          </div>
+          <div className={classes.optionsForm} style={{ height: '30em' }}>
+            <Typography id="range-slider" gutterBottom>
+              Value range
+            </Typography>
+            <Slider
+              orientation="vertical"
+              value={options.valueRange}
+              min={options.valueRangeLimit[0]}
+              max={options.valueRangeLimit[1]}
+              marks={[
+                {
+                  value: options.valueRangeLimit[0],
+                  label: `min ${options.valueRangeLimit[0]}`,
+                },
+                {
+                  value: options.valueRangeLimit[2],
+                  label: `mean ${options.valueRangeLimit[2]}`,
+                },
+                {
+                  value: options.valueRangeLimit[1],
+                  label: `max ${options.valueRangeLimit[1]}`,
+                },
+              ]}
+              step={1}
+              onChange={(e, value) => {
+                window.twoDImageView.setValueRange(value[0], value[1]);
+                setOption('valueRange', value);
+              }}
+              valueLabelDisplay="auto"
+              aria-labelledby="range-slider"
+            />
+          </div>
         </SwipeableDrawer>
         <Snackbar
           className={classes.snackBar}
@@ -223,12 +265,7 @@ class ResponsiveDrawer extends React.Component {
 
 function mapStateToProps({ imageView, app }) {
   return {
-    compress: imageView.options.compress,
-    autoScale: imageView.options.autoScale,
-    progDownload: imageView.options.progDownload,
-    showResolution: imageView.options.showResolution,
-    downloadFull: imageView.options.downloadFull,
-    showFullData: imageView.options.showFullData,
+    options: imageView.options,
     currentImagePath: imageView.currentImage,
     images: imageView.images,
     app

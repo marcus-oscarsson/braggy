@@ -14,7 +14,19 @@ const initialState = {
     autoScale: true,
     aggDownload: true,
     downloadFull: true,
-    showFullData: false
+    showFullData: false,
+    valueRange: [-2, 10],
+    valueRangeLimit: [-2, 10, 5],
+    availableCmaps: {
+      viridis: 0,
+      plasma: 1,
+      magma: 2,
+      inferno: 3,
+      temperature: 4,
+      grey: 5,
+      deadpixels: 6,
+    },
+    currentCmap: 'viridis'
   }
 };
 
@@ -47,6 +59,10 @@ export const ImageViewReducer = {
 
   [setCurrentImage]: (state, { payload: { path } }) => (
     { ...state, currentImage: path }
+  ),
+
+  [setOption]: (state, { payload: { key, value } }) => (
+    { ...state, options: { ...state.options, [key]: value } }
   )
 };
 

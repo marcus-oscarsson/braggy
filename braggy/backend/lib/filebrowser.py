@@ -6,6 +6,10 @@ from subprocess import run, PIPE
 from braggy.backend.app import App
 
 
+def list_entry(path):
+    pass
+
+
 def list_dir(path="."):
     APP_CONFIG = App().CONFIG
 

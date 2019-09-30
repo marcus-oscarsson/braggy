@@ -5,7 +5,7 @@ import { withStyles } from '@material-ui/core/styles';
 import * as PIXI from 'pixi.js';
 
 import imageBuffer from 'app/utils/buffer';
-import ThreeImageView from './ThreeImageView';
+import ThreeImageView from './TwoDImageView';
 
 import {
   resolutionAt,

@@ -5,10 +5,13 @@ import os
 import io
 import math
 import logging
+
+
 from abc import (ABC, abstractmethod)
 
 from collections import OrderedDict
 
+import h5py
 import numpy as np
 from PIL import Image, ImageOps
 from fabio.cbfimage import cbfimage
@@ -109,12 +112,11 @@ class FileReader():
         handler = self._get_handler(ext)
 
         if not ImageCache.incache(path):
-            hdr, raw_data, preview_data, png_data = handler.preload(path)
+            hdr, raw_data, preview_data = handler.preload(path)
             ImageCache.add(path, {
               'hdr': hdr, 
               'raw': raw_data,
-              'preview': preview_data,
-              'png': png_data
+              'preview': preview_data
             })
         else:
             hdr = ImageCache.get(path)['hdr']
@@ -123,7 +125,6 @@ class FileReader():
 
 
 class AbstractFormatHandler(ABC):
-
     @abstractmethod
     def preload(self, path):
         pass
@@ -140,61 +141,85 @@ class AbstractFormatHandler(ABC):
     def get_preview_data(self, path):
         pass
 
-
-class CBFFormatHandler(AbstractFormatHandler):
-    _FORMAT = 'cbf'
-    _EXT = ['.cbf']
+class HDF5FormatHandler(AbstractFormatHandler):
+    _FORMAT = 'hdf5'
+    _EXT = ['.h5', 'hdf5']
 
     def __init__(self):
         pass
 
     def preload(self, path):
-        cbf_image = cbfimage(fname=path)
-        raw_data = cbf_image.data.tobytes()
-        img_hdr = cbf_image.header
+        data = self._h5dump(path)['/entry/data/data'][0]
+        img_hdr = {}
 
-        png_data = self._image_based_repr(cbf_image, "png", "L")
-        preview_data = self._8bit_raw_repr(cbf_image, "L")
+        np_array = data.astype(np.float32)
+        raw_data = np_array.tobytes()
+        preview_data = data.clip(0).astype(np.uint8).tobytes()
 
-        parsed_ext_hdr, braggy_hdr = self._parse_header(img_hdr, cbf_image.dim1, cbf_image.dim2)
+        width = data.shape[0]
+        height = data.shape[1]
 
-        img_hdr['parsed_ext_hdr'] = parsed_ext_hdr
+        _max = np_array.max().item()
+        _min = np_array.min().item()
+        _mean = np_array.mean().item()
+
+        # braggy_hdr = self._parse_header(img_hdr, data)
+        braggy_hdr = {
+                'wavelength': 1,
+                'detector_distance': 1,
+                'beam_cx': width,
+                'beam_cy': height,
+                'beam_ocx': (width / 2),
+                'beam_ocy': (height / 2),
+                'detector_radius': 0.1,
+                'pixel_size_x': 0.001,
+                'pixel_size_y': 0.001,
+                'img_width': width,
+                'img_height': height,
+                'pxxpm': 1,
+                'pxypm': 1,
+                'min': _min,
+                'max': _max,
+                'mean': _mean,
+            }
+
         img_hdr['braggy_hdr'] = braggy_hdr
-
-        return img_hdr, raw_data, preview_data, png_data
+        
+        return img_hdr, raw_data, preview_data
 
     def get_hdr(self, path):
-        _root, ext = os.path.splitext(path)
-        hdr = None
+        pass
 
-        if ext.lower() == '.cbf':
-            cbf_img = cbfimage(fname=path)
-            hdr = cbf_img.header
-            parsed_ext_hdr, braggy_hdr = self._parse_header(hdr, cbf_img.dim1, cbf_img.dim2)
-            hdr['parsed_ext_hdr'] = parsed_ext_hdr
-            hdr['braggy_hdr'] = braggy_hdr
-
-        return hdr
-
-    def get_raw_data(self, path, **kwargs):
-        cbf_image = cbfimage(fname=path)
-        raw_data = cbf_image.data.tobytes()
-
-        return raw_data
+    def get_raw_data(self, path):
+        pass
 
     def get_preview_data(self, path):
-        cbf_image = cbfimage(fname=path)
-        data = self._8bit_raw_repr(cbf_image, 'L')
+        pass
+
+    def _descend_obj(self, obj):
+        data = {}
+
+        if type(obj) in [h5py._hl.group.Group, h5py._hl.files.File]:
+            for key in obj.keys():
+                data.update(self._descend_obj(obj[key]))
+        elif type(obj) == h5py._hl.dataset.Dataset:
+            for key in obj.attrs.keys():
+                data[obj.name + "/" + key] = obj.attrs[key]
+
+            data[obj.name] = obj.attrs
+            data[obj.name] =  obj[...]
 
         return data
 
-    def get_png_data(self, path):
-        cbf_image = cbfimage(fname=path)
-        data = self._image_based_repr(cbf_image, "png", "L")
+    def _h5dump(self, path, group='/'):
+        data = {}
+
+        with h5py.File(path, 'r') as f:
+            data = self._descend_obj(f[group])
 
         return data
 
-    def _8bit_raw_repr(self, raw_data, color_space):
+    def _8bit_raw_repr(self, raw_data):
         data = raw_data.data.clip(0)
         data = data.astype(np.uint8)
 
@@ -211,7 +236,79 @@ class CBFFormatHandler(AbstractFormatHandler):
 
         return img_data
 
-    def _parse_header(self, hdr, width, height):
+
+class CBFFormatHandler(AbstractFormatHandler):
+    _FORMAT = 'cbf'
+    _EXT = ['.cbf']
+
+    def __init__(self):
+        pass
+
+    def preload(self, path):
+        cbf_image = cbfimage(fname=path)
+        float_data = cbf_image.data.astype(np.float32)
+        raw_data = float_data.tobytes()
+
+        preview_data = self._8bit_raw_repr(cbf_image)
+
+        parsed_ext_hdr, braggy_hdr = self._parse_header(cbf_image, float_data)
+
+        img_hdr = {}
+        img_hdr['parsed_ext_hdr'] = parsed_ext_hdr
+        img_hdr['braggy_hdr'] = braggy_hdr
+
+        return img_hdr, raw_data, preview_data
+
+    def get_hdr(self, path):
+        _root, ext = os.path.splitext(path)
+        hdr = None
+
+        if ext.lower() == '.cbf':
+            cbf_img = cbfimage(fname=path)
+            float_data = cbf_img.data.astype(np.float32)
+            hdr = cbf_img.header
+            parsed_ext_hdr, braggy_hdr = self._parse_header(hdr, float_data)
+            hdr['parsed_ext_hdr'] = parsed_ext_hdr
+            hdr['braggy_hdr'] = braggy_hdr
+
+        return hdr
+
+    def get_raw_data(self, path, **kwargs):
+        cbf_image = cbfimage(fname=path)
+        raw_data = cbf_image.data.astype(np.float32).tobytes()
+
+        return raw_data
+
+    def get_preview_data(self, path):
+        cbf_image = cbfimage(fname=path)
+        data = self._8bit_raw_repr(cbf_image)
+
+        return data
+
+    def _8bit_raw_repr(self, raw_data):
+        data = raw_data.data.clip(0)
+        data = data.astype(np.uint8)
+
+        return data.tobytes()
+
+    def _image_based_repr(self, cbf_image, fmt, color_space):
+        image = cbf_image.toPIL16().convert(color_space, dither=None)
+        image = ImageOps.invert(image)
+
+        byte_stream = io.BytesIO()
+        image.save(byte_stream, format=fmt, compress_level=1)
+
+        img_data = byte_stream.getvalue()
+
+        return img_data
+
+    def _parse_header(self, cbf_image, np_array):
+        width, height = cbf_image.dim1, cbf_image.dim2
+        _max = np_array.max().item()
+        _min = np_array.min().item()
+        _mean = np_array.mean().item()
+
+        hdr = cbf_image.header
         parsed_ext_hdr = {}
         braggy_hdr = {}
 
@@ -250,7 +347,10 @@ class CBFFormatHandler(AbstractFormatHandler):
                 'img_width': width,
                 'img_height': height,
                 'pxxpm': 1 / px_size_x,
-                'pxypm': 1 / px_size_y
+                'pxypm': 1 / px_size_y,
+                'min': _min,
+                'max': _max,
+                'mean': _mean,
             }
         except (KeyError, IndexError):
             log.info("Could not create Braggy header from CBF header")

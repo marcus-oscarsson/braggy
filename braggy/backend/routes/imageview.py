@@ -49,13 +49,6 @@ class ImageReader():
         )
 
         self.router.add_api_route(
-            "/raw-full-get",
-            self._get_image_raw_full_get,
-            name="raw-full-get",
-            methods=["GET"]
-        )
-
-        self.router.add_api_route(
             "/hdr",
             self._get_image_hdr,
             name="hdr",
@@ -86,69 +79,53 @@ class ImageReader():
 
     async def _preload_image(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
+        hdr = App().file_reader.preload(img_path)
 
         # Call to get_image_data caches image data to enable parallel download of
         # full and subsampled data sets. The data is read once and fecthed by
         # simultaneoulsy by two different requests.
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
 
-        return _img_hdr
+        return hdr
 
 
     async def _get_image(self, path: str):
         img_path = App().abs_data_path(path)
-
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
-        return Response(_img_data, media_type='image/png')
+        data = App().file_reader.get_data(img_path, "png")
+        return Response(data, media_type='image/png')
 
 
     async def _get_image_bin(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="png")
+        data = App().file_reader.get_data(img_path, "png")
 
-        return Response(_img_data,
+        return Response(data,
                         media_type="application/octet-stream")
 
 
     async def _get_image_raw_subs(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path, fmt="raw")
+        data = App().file_reader.get_data(img_path, "preview")
 
-        _img_data = lz4.frame.compress(_img_data)
+        data = lz4.frame.compress(data)
 
-        return Response(_img_data,
+        return Response(data,
                         media_type="application/octet-stream")
 
 
     async def _get_image_raw_full(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
+        raw_data = App().file_reader.get_data(img_path, "raw")
 
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
-
-        # _raw_data = zlib.compress(_raw_data, 6)
-
-        return Response(_raw_data,
-                        media_type="application/octet-stream")
-
-
-    async def _get_image_raw_full_get(self):
-        fp = "/home/marcus/braggy-data/id29/FAE_w1_2_0051.cbf"
-        img_path = App().abs_data_path(fp)
-
-        _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
-
-        _raw_data = zlib.compress(_raw_data, 6)
-
-        return Response(_raw_data,
-                        headers={
-                            "Content-Encoding": "gzip"
-                        },
+        return Response(raw_data,
+                        #headers={
+                        #    "Content-Encoding": "deflate"
+                        #},
                         media_type="application/octet-stream")
 
 
     async def _get_image_hdr(self, fp: FilePath):
         img_path = App().abs_data_path(fp.path)
-        _img_hdr = readimage.get_image_hdr(img_path)
+        _img_hdr = App().file_reader.get_hdr(img_path)
 
         return _img_hdr
 
@@ -158,7 +135,7 @@ class ImageReader():
 
         if app.follow_enabled():
             img_path = App().abs_data_path(path)
-            _img_hdr, _raw_data, _img_data = readimage.get_image_data(img_path)
+            App().file_reader.preload(img_path)
 
             await App().sio.emit("show-image", {"path": img_path})
             status = 200

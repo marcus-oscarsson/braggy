@@ -6,6 +6,7 @@ import logging
 import sys
 
 from braggy.backend.lib.readimage import (FileReader, CBFFormatHandler, HDF5FormatHandler)
+from braggy.backend.lib.filebrowser import (FileBrowser, FSFileBrowserHandler, HDF5FileBrowserHandler)
 
 class App():
     instance = None
@@ -13,7 +14,7 @@ class App():
     class Application():
         CONFIG = {
             "DATA_PATH": os.path.expanduser("~"),
-            "EXTENSIONS": [".cbf", ".h5"]
+            "EXTENSIONS": [".cbf", ".h5", ".dataset"]
         }
 
         DEFAULT_CONFIG_FPATHS = [os.path.expanduser("~/braggy.ini")]
@@ -94,6 +95,13 @@ class App():
             self.file_reader = FileReader()
             self.file_reader.register_handler(CBFFormatHandler())
             self.file_reader.register_handler(HDF5FormatHandler())
+
+            FileBrowser.ROOT_PATH = App.Application.CONFIG["DATA_PATH"]
+            FileBrowser.EXTENSIONS = App.Application.CONFIG["EXTENSIONS"]
+
+            self.file_browser = FileBrowser()
+            self.file_browser.register_handler(FSFileBrowserHandler())
+            self.file_browser.register_handler(HDF5FileBrowserHandler())
 
     def __new__(cls, *args, **kwargs):
         if not App.instance:

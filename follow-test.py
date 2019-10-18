@@ -36,7 +36,7 @@ if __name__ == "__main__":
     request.urlopen(req).read()
 
     for url in urls:
-        time.sleep(0.1)
+        time.sleep(0.5)
         content = json.loads(request.urlopen(url).read())
         print("%s: %s" % (content, url))
 

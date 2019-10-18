@@ -6,21 +6,22 @@ import io
 import math
 import logging
 
-
 from abc import (ABC, abstractmethod)
 
 from collections import OrderedDict
 
 import h5py
 import numpy as np
+
 from PIL import Image, ImageOps
 from fabio.cbfimage import cbfimage
+from braggy.backend.lib.h5utils import h5dump
+
 
 Image.MAX_IMAGE_PIXELS = 1000000000
 Image.warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
 log = logging.getLogger('braggy')
-
 
 class ImageCache():
     IMAGES = OrderedDict()
@@ -58,9 +59,6 @@ class FileReader():
 
     def _check_path(self, path):
         _root, ext = os.path.splitext(path)
-
-        if not os.path.exists(path):
-            raise IOError("Path %s does not exist" % path)
 
         if not ext.lower() in self._handlers:
             raise KeyError("No handler for ext %s (%s)" % (ext, path))
@@ -143,81 +141,71 @@ class AbstractFormatHandler(ABC):
 
 class HDF5FormatHandler(AbstractFormatHandler):
     _FORMAT = 'hdf5'
-    _EXT = ['.h5', 'hdf5']
+    _EXT = ['.dataset']
 
     def __init__(self):
         pass
 
     def preload(self, path):
-        data = self._h5dump(path)['/entry/data/data'][0]
-        img_hdr = {}
+        h5path, img_num = self._interpret_path(path)
+
+        data = h5dump(h5path)
+        image_nr_low = int(data['/entry/data/data/image_nr_low'])
+        idx = img_num - image_nr_low
+        data = data['/entry/data/data'][idx]
 
         np_array = data.astype(np.float32)
         raw_data = np_array.tobytes()
         preview_data = data.clip(0).astype(np.uint8).tobytes()
 
-        width = data.shape[0]
-        height = data.shape[1]
+        img_hdr = self.get_hdr(path, np_array)
+        
+        return img_hdr, raw_data, preview_data
+
+    def get_hdr(self, path, np_array):
+        _, ext = os.path.splitext(path.rstrip('.dataset'))
+        prefix, _ = path.split("_data")
+        mfpath = prefix + "_master" + ext
+
+        inst = h5dump(mfpath, '/entry/instrument')
+
+        pixel_size_x = inst['/entry/instrument/detector/x_pixel_size'].item()
+        pixel_size_y = inst['/entry/instrument/detector/y_pixel_size'].item()
+        width = inst['/entry/instrument/detector/detectorSpecific/x_pixels_in_detector'].item()
+        height = inst['/entry/instrument/detector/detectorSpecific/y_pixels_in_detector'].item()
 
         _max = np_array.max().item()
         _min = np_array.min().item()
         _mean = np_array.mean().item()
+        _std = np_array.std().item()
 
-        # braggy_hdr = self._parse_header(img_hdr, data)
         braggy_hdr = {
-                'wavelength': 1,
-                'detector_distance': 1,
-                'beam_cx': width,
-                'beam_cy': height,
+                'wavelength': inst['/entry/instrument/beam/incident_wavelength'].item(),
+                'detector_distance': inst['/entry/instrument/detector/detector_distance'].item(),
+                'beam_cx': inst['/entry/instrument/detector/beam_center_x'].item(),
+                'beam_cy': inst['/entry/instrument/detector/beam_center_y'].item(),
                 'beam_ocx': (width / 2),
                 'beam_ocy': (height / 2),
-                'detector_radius': 0.1,
-                'pixel_size_x': 0.001,
-                'pixel_size_y': 0.001,
+                'detector_radius': (width * pixel_size_x) / 2,
+                'pixel_size_x': pixel_size_x,
+                'pixel_size_y': pixel_size_y,
                 'img_width': width,
                 'img_height': height,
-                'pxxpm': 1,
-                'pxypm': 1,
+                'pxxpm': 1 / pixel_size_x,
+                'pxypm': 1 / pixel_size_y,
                 'min': _min,
                 'max': _max,
                 'mean': _mean,
+                'std': _std,
             }
 
-        img_hdr['braggy_hdr'] = braggy_hdr
-        
-        return img_hdr, raw_data, preview_data
-
-    def get_hdr(self, path):
-        pass
+        return {'braggy_hdr': braggy_hdr }
 
     def get_raw_data(self, path):
         pass
 
     def get_preview_data(self, path):
         pass
-
-    def _descend_obj(self, obj):
-        data = {}
-
-        if type(obj) in [h5py._hl.group.Group, h5py._hl.files.File]:
-            for key in obj.keys():
-                data.update(self._descend_obj(obj[key]))
-        elif type(obj) == h5py._hl.dataset.Dataset:
-            for key in obj.attrs.keys():
-                data[obj.name + "/" + key] = obj.attrs[key]
-
-            data[obj.name] = obj.attrs
-            data[obj.name] =  obj[...]
-
-        return data
-
-    def _h5dump(self, path, group='/'):
-        data = {}
-
-        with h5py.File(path, 'r') as f:
-            data = self._descend_obj(f[group])
-
-        return data
 
     def _8bit_raw_repr(self, raw_data):
         data = raw_data.data.clip(0)
@@ -235,6 +223,13 @@ class HDF5FormatHandler(AbstractFormatHandler):
         img_data = byte_stream.getvalue()
 
         return img_data
+
+    def _interpret_path(self, path):
+        h5path, dataset_path = os.path.split(path)
+        _, imgnum_suffix = dataset_path.rstrip(".dataset").split("image_")
+        imgnum, suffix = imgnum_suffix.split(".")
+
+        return h5path, int(imgnum)
 
 
 class CBFFormatHandler(AbstractFormatHandler):
@@ -307,6 +302,7 @@ class CBFFormatHandler(AbstractFormatHandler):
         _max = np_array.max().item()
         _min = np_array.min().item()
         _mean = np_array.mean().item()
+        _std = np_array.std().item()
 
         hdr = cbf_image.header
         parsed_ext_hdr = {}
@@ -351,6 +347,7 @@ class CBFFormatHandler(AbstractFormatHandler):
                 'min': _min,
                 'max': _max,
                 'mean': _mean,
+                'std': _std,
             }
         except (KeyError, IndexError):
             log.info("Could not create Braggy header from CBF header")

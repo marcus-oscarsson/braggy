@@ -6,6 +6,7 @@ import * as AppActions from 'app/app-actions';
 import DownloadWorker from 'app/imageview/full-data-download.worker';
 import DataWorker from 'app/imageview/preview-data-download.worker';
 import imageBuffer from 'app/utils/buffer';
+import { getImageView } from 'views/imageview/ImageView';
 
 export default function initApp(store) {
   const socket = io.connect(`http://${document.domain}:${window.location.port}`, { path: '/api/socket.io/' });
@@ -41,12 +42,10 @@ export default function initApp(store) {
       const rawData = e.data.data;
 
       imageBuffer.add(e.data.path, 'raw', rawData);
-
+      getImageView('default').render(rawData, hdr, 'float32');
+      getImageView('default').setValueRange(hdr.min, hdr.mean * 10);
+      getImageView('default').setValueLimitRange(hdr.min, hdr.std * 3);
       store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
-      window.twoDImageView.render(rawData, hdr, 'float32');
-      store.dispatch(ImageViewActions.setOption('valueRange', [hdr.min, hdr.mean * 50]));
-      store.dispatch(ImageViewActions.setOption('valueRangeLimit', [hdr.min, hdr.mean * 100, hdr.mean]));
-      window.twoDImageView.setValueRange(hdr.min, hdr.mean * 50);
     }
   };
 
@@ -59,12 +58,8 @@ export default function initApp(store) {
       const rgbData = e.data.data;
 
       imageBuffer.add(e.data.path, 'preview', rgbData);
-
+      getImageView('default').render(rgbData, hdr, 'int32');
       store.dispatch(ImageViewActions.setAndAddImage(e.data.path, hdr));
-      window.twoDImageView.render(rgbData, hdr, 'int32');
-      store.dispatch(ImageViewActions.setOption('valueRange', [hdr.min, hdr.mean * 50]));
-      store.dispatch(ImageViewActions.setOption('valueRangeLimit', [hdr.min, hdr.mean * 100, hdr.mean]));
-      window.twoDImageView.setValueRange(hdr.min, hdr.mean * 50);
     }
   };
 }

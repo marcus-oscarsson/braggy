@@ -2,6 +2,12 @@ import * as THREE from 'three-full';
 import Stats from 'stats.js';
 import * as d3 from 'd3';
 
+const IMAGE_VIEW_REGISTRY = {};
+
+export function getImageView(name) {
+  return IMAGE_VIEW_REGISTRY[name];
+}
+
 /* eslint-disable */
 export const StdShader = {
   cmaps: {
@@ -142,6 +148,31 @@ export const StdShader = {
   ].join('\n')
 };
 
+export const RGBShader = {
+  uniforms: {
+  },
+  vertexShader: [
+    'varying vec2 vUv;',
+    'void main() {',
+       'vUv = uv;',
+       'gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
+    '}'
+  ].join('\n'),
+  fragmentShader: [
+    'uniform sampler2D data;',
+    'varying vec2 vUv;',
+
+    'void main() {',
+        'vec4 color = texture2D(data, vUv);',
+        'vec3 c = color.rgb;',
+        'c.r = color.r;',
+        'c.g = color.g;',
+        'c.b = color.b;',
+        'gl_FragColor = vec4(c.rgb, color.a);',
+    '}'
+  ].join('\n')
+};
+
 export const SepiaShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -176,7 +207,7 @@ export const SepiaShader = {
 
 class InfoDiv {
   constructor(className) {
-    this.dom = document.createElement('div');
+    this.dom = document.createElement('span');
 
     Object.assign(this.dom.style, {
       position: 'absolute',
@@ -184,16 +215,22 @@ class InfoDiv {
       padding: '0.5em',
       'border-radius': '4px',
       color: 'rgba(255, 255, 255, 1)',
-      display: 'none',
+      display: 'inline',
       'user-select': 'none',
       'pointer-events': 'none'
     });
 
     this.dom.className = className;
+
+    window.addEventListener('mousemove', (e) => {
+      if (e.target.id !== 'imageview-canvas') {
+        this.hide();
+      }
+    });
   }
 
   show = () => {
-    this.dom.style.display = 'block';
+    this.dom.style.display = 'inline';
   }
 
   hide = () => {
@@ -211,17 +248,31 @@ function resolutionAt(x, y, dd, wavelength) {
   return wavelength / (2 * Math.sin(0.5 * Math.atan(dhalf / dd)));
 }
 
-export default class TwoDImageView {
-  constructor(container) {
-    this.container = container;
-    this.mouseOverInfoDiv = new InfoDiv('imgeview-info-div');
-    this.container.appendChild(this.mouseOverInfoDiv.dom);
-    this.cmap = StdShader;
+function resolutionRings(dr, dd, wavelength, ddr = 0.03, sr = 0.01) {
+  const resRings = [];
+
+  for (let r = sr; r <= dr; r += ddr) {
+    const dhalf = r * Math.PI;
+    const res = wavelength / (2 * Math.sin(0.5 * Math.atan(dhalf / dd)));
+    resRings.push({ r, res });
+  }
+
+  return resRings;
+}
+
+export default class ImageView {
+  static VIEWS = {};
+
+  constructor(name = 'default') {
+    IMAGE_VIEW_REGISTRY[name] = this;
+
+    this.shader = StdShader;
     this.cmap_min = 0;
     this.cmap_max = 1;
     this.cmap = 0;
+    this.valueLimitRange = [0, 0];
+    this.renderRings = false;
 
-    this.rawData = null;
     this.data = null;
     this.imageWidth = null;
     this.imageHeight = null;
@@ -230,8 +281,13 @@ export default class TwoDImageView {
       beamCY: 0,
       pxpmmX: 0,
       pxpmmY: 0,
-      detectorDistance: 0,
-      wavelength: 0
+      detector_distance: 0,
+      detector_radius: 0,
+      wavelength: 0,
+      min: 0,
+      max: 0,
+      mean: 0,
+      std: 0,
     };
 
     this.width = null;
@@ -245,22 +301,22 @@ export default class TwoDImageView {
 
     this.d3view = null;
     this.d3Container = null;
-
-    this.init();
-  }
-
-  setRawData = (d) => {
-    this.rawData = d;
   }
 
   setImageHdr = (beamCX, beamCY, pxppmX, pxppmY,
-    detectorDistance, wavelength) => {
+    detectorDistance, detectorRadius, wavelength,
+    min, max, mean, std) => {
     this.imageHDR.beamCX = beamCX;
     this.imageHDR.beamCY = beamCY;
     this.imageHDR.pxpmmX = pxppmX;
     this.imageHDR.pxpmmY = pxppmY;
-    this.imageHDR.detectorDistance = detectorDistance;
+    this.imageHDR.detector_distance = detectorDistance;
+    this.imageHDR.detector_radius = detectorRadius;
     this.imageHDR.wavelength = wavelength;
+    this.imageHDR.min = min;
+    this.imageHDR.max = max;
+    this.imageHDR.mean = mean;
+    this.imageHDR.std = std;
   }
 
   setValueRange = (min, max) => {
@@ -276,6 +332,10 @@ export default class TwoDImageView {
     }
   }
 
+  setValueLimitRange = (min, max) => {
+    this.valueLimitRange = [min, max];
+  }
+
   setColormap = (cmap) => {
     this.cmap = cmap;
 
@@ -287,7 +347,23 @@ export default class TwoDImageView {
     }
   }
 
-  init = () => {
+  showDiffractionRings = (value) => {
+    this.renderRings = value;
+
+    this.diffraction_rings.forEach((ring) => {
+      ring.position.z = value ? 1 : -1;
+      ring.needsUpdate = true;
+    });
+
+    this.scene.needsUpdate = true;
+  }
+
+  init = (container) => {
+    this.container = container;
+
+    this.mouseOverInfoDiv = new InfoDiv('imgeview-info-div');
+    this.container.appendChild(this.mouseOverInfoDiv.dom);
+
     this.initD3();
     this.initThree(this.container.clientWidth, this.container.clientHeight);
     this.initPanAndZoom();
@@ -298,16 +374,14 @@ export default class TwoDImageView {
   }
 
   initD3 = () => {
-    this.d3Container = d3.select(this.container)
+    d3.select(this.container)
       .append('svg')
+      .attr('id', 'd3-container')
       .attr('width', this.container.clientWidth)
       .attr('height', this.container.clientHeight)
       .attr('style', 'position: absolute; pointer-events: none;');
 
-    // this.d3Container.append('circle')
-    //   .attr('cx', this.container.clientWidth / 2)
-    //   .attr('cy', this.container.clientHeight / 2)
-    //   .attr('r', 20);
+    this.d3Container = d3.select('#d3-container');
   }
 
   initThree = (width, height) => {
@@ -318,6 +392,7 @@ export default class TwoDImageView {
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.container.appendChild(this.renderer.domElement);
+    this.renderer.domElement.id = 'imageview-canvas';
 
     // Add stats box
     this.stats = new Stats();
@@ -377,14 +452,14 @@ export default class TwoDImageView {
 
   handleMouseMove = (e) => {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const x = e.clientX - rect.x;
-    const y = e.clientY - rect.y;
+    const x = e.clientX - Math.floor(rect.x);
+    const y = e.clientY - Math.floor(rect.y);
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = (x / rect.width) * 2 - 1;
+    mouse.y = -(y / rect.height) * 2 + 1;
 
     // update the picking ray with the camera and mouse position
     raycaster.setFromCamera(mouse, this.camera);
@@ -392,7 +467,9 @@ export default class TwoDImageView {
     // calculate objects intersecting the picking ray
     const intersects = raycaster.intersectObjects(this.scene.children);
 
-    if (intersects.length > 0) {
+    this.mouseOverInfoDiv.hide();
+
+    if (intersects.length > 0 && intersects[0].uv !== undefined) {
       /* eslint no-bitwise:0 */
       /* eslint no-mixed-operators:0 */
       const obj = intersects[0];
@@ -400,20 +477,20 @@ export default class TwoDImageView {
       const imageX = Math.floor(obj.uv.x * this.imageWidth);
       const imageY = Math.floor((1 - obj.uv.y) * this.imageHeight);
       const i = (imageY * this.imageWidth + imageX);
-      const intensity = this.rawData[i];
+      const intensity = this.data[i];
 
       const cx = ((this.imageWidth / 2 + this.imageHDR.beamCX) - imageX) / this.imageHDR.pxpmmX;
       const cy = ((this.imageHeight / 2 + this.imageHDR.beamCY) - imageY) / this.imageHDR.pxpmmY;
       const res = resolutionAt(
         cx,
         cy,
-        this.imageHDR.detectorDistance,
+        this.imageHDR.detector_distance,
         this.imageHDR.wavelength
       ).toFixed(2);
 
       this.mouseOverInfoDiv.dom.innerHTML = `X:${imageX} Y:${imageY} <br /> Intensity: ${intensity} <br /> Resolution ${res}`;
       this.mouseOverInfoDiv.show();
-      this.mouseOverInfoDiv.setPosition(x, y);
+      this.mouseOverInfoDiv.setPosition(e.clientX, e.clientY);
     }
   }
 
@@ -421,6 +498,14 @@ export default class TwoDImageView {
     this.d3zoom.scaleTo(this.d3view, s);
     this.camera.zoom = s;
     this.camera.updateProjectionMatrix();
+  }
+
+  resetScale = () => {
+    this.scale(this.container.clientHeight / this.imageHeight);
+  }
+
+  relativeScale = (s) => {
+    this.scale(this.camera.zoom + s);
   }
 
   animateThree = () => {
@@ -481,6 +566,43 @@ export default class TwoDImageView {
     geometry.uvsNeedUpdate = true;
   }
 
+  createGlCricle = (r, xo = 0, yo = 0) => {
+    const dashMaterial = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      linewidth: 1
+    });
+
+    const circleGeom = new THREE.CircleGeometry(r, 100, 0, 3 * Math.PI);
+    const circle = new THREE.Line(circleGeom, dashMaterial);
+    circleGeom.vertices.shift();
+
+    circle.position.x = this.container.clientWidth / 2 + xo;
+    circle.position.y = this.container.clientHeight / 2 + yo;
+    circle.position.z = -1;
+
+    circle.needsUpdate = true;
+
+    return circle;
+  }
+
+  createDiffractionRings() {
+    const rings = resolutionRings(
+      this.imageHDR.detector_radius,
+      this.imageHDR.detector_distance,
+      this.imageHDR.wavelength
+    );
+
+    const glRings = rings.map(ring => (
+      this.createGlCricle(ring.r * this.imageHDR.pxpmmX,
+        -this.imageHDR.beamCX,
+        -this.imageHDR.beamCY)
+    ));
+
+    glRings.push(this.createGlCricle(5, -this.imageHDR.beamCX, -this.imageHDR.beamCY));
+
+    return glRings;
+  }
+
   renderImageData = (data, width, height, dtype = 'float32') => {
     // Clear already existing scene
     this.data = data;
@@ -501,12 +623,14 @@ export default class TwoDImageView {
 
     let threeDtype = THREE.UnsignedByteType;
     let threeFormat = THREE.RGBAFormat;
-    let shader = this.cmap;
+    let { shader } = this;
 
     if (dtype === 'float32') {
       threeDtype = THREE.FloatType;
       threeFormat = THREE.LuminanceFormat;
       shader = StdShader;
+    } else {
+      shader = RGBShader;
     }
 
     this.dataTexture = new THREE.DataTexture(
@@ -549,19 +673,33 @@ export default class TwoDImageView {
     this.mesh.needsUpdate = true;
 
     this.scene.add(this.mesh);
+
+    this.diffraction_rings = this.createDiffractionRings();
+
+    this.diffraction_rings.forEach(ring => (
+      this.scene.add(ring)
+    ));
+
+    if (this.renderRings) {
+      this.showDiffractionRings(true);
+    }
+
     this.scene.needsUpdate = true;
   }
 
   render = (rawDataBuffer, imgHeader, dtype) => {
-    this.setRawData(rawDataBuffer);
-
     this.setImageHdr(
       imgHeader.beam_ocx,
       imgHeader.beam_ocy,
       imgHeader.pxxpm,
       imgHeader.pxypm,
       imgHeader.detector_distance,
-      imgHeader.wavelength
+      imgHeader.detector_radius,
+      imgHeader.wavelength,
+      imgHeader.min,
+      imgHeader.max,
+      imgHeader.mean,
+      imgHeader.std,
     );
 
     this.renderImageData(

@@ -1,23 +1,9 @@
 import React from 'react';
 import CssBaseline from '@material-ui/core/CssBaseline';
-import classNames from 'classnames';
-import Divider from '@material-ui/core/Divider';
 import SwipeableDrawer from '@material-ui/core/SwipeableDrawer';
 import List from '@material-ui/core/List';
-import FormLabel from '@material-ui/core/FormLabel';
-import FormGroup from '@material-ui/core/FormGroup';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Checkbox from '@material-ui/core/Checkbox';
 import Snackbar from '@material-ui/core/Snackbar';
 import Fade from '@material-ui/core/Fade';
-import IconButton from '@material-ui/core/IconButton';
-import SettingsIcon from '@material-ui/icons/Settings';
-import ChevronRightIcon from '@material-ui/icons/ChevronRight';
-import Slider from '@material-ui/core/Slider';
-import Typography from '@material-ui/core/Typography';
-import Select from '@material-ui/core/Select';
-import InputLabel from '@material-ui/core/InputLabel';
-import FormControl from '@material-ui/core/FormControl';
 
 import { withStyles } from '@material-ui/core/styles';
 
@@ -25,11 +11,11 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import FileBrowser from 'views/file-browser/FileBrowser';
-import ImageView from 'views/imageview/ImageView';
+import ReactImageView from 'views/imageview/ReactImageView';
 
 import * as ImageViewActions from 'app/imageview/imageview-actions';
 
-const drawerWidth = 260;
+const drawerWidth = 300;
 
 const styles = theme => ({
   root: {
@@ -77,16 +63,42 @@ const styles = theme => ({
 
 
 class ResponsiveDrawer extends React.Component {
-  state = {
-    open: false,
-  };
+  componentDidUpdate() {
+    // debugger;
 
-  handleDrawerOpen = () => {
-    this.setState({ open: true });
-  }
+    // if (window.twoDImageView.data) {
+    //   debugger;
+    //   const d = window.twoDImageView.data;
+    //   const x = {};
+    //   // const y = [];
 
-  handleDrawerClose = () => {
-    this.setState({ open: false });
+    //   for (let i = 0; i <= d.length; i += 1) {
+    //     if (x[d[i]] !== undefined) {
+    //       x[d[i]] += 1;
+    //     } else {
+    //       x[d[i]] = 0;
+    //     }
+    //   }
+
+    //   debugger;
+
+    //   const trace = {
+    //     x: Object.keys(x),
+    //     y: Object.values(x),
+    //     type: 'histogram',
+    //     histfunc: 'count',
+    //     histnorm: 'density',
+    //     autobinx: false,
+    //     xbins: {
+    //       end: 10000,
+    //       size: 1,
+    //       start: -2
+    //     },
+    //   };
+
+    //   const data = [trace];
+    //   Plotly.newPlot('histogram', data);
+    // }
   }
 
   log10 = value => ([Math.log(value[0]) / Math.log(10), Math.log(value[1]) / Math.log(10)])
@@ -104,17 +116,11 @@ class ResponsiveDrawer extends React.Component {
   render() {
     const {
       classes,
-      options,
-      setOption,
       images,
       app,
       fetchImageRequest,
       currentImagePath
     } = this.props;
-
-    const {
-      open
-    } = this.state;
 
     const drawer = (
       <div>
@@ -129,14 +135,6 @@ class ResponsiveDrawer extends React.Component {
 
     return (
       <div className={classes.root}>
-        <IconButton
-          color="inherit"
-          aria-label="Open drawer"
-          onClick={this.handleDrawerOpen}
-          className={classNames(classes.menuButton, open && classes.hide)}
-        >
-          <SettingsIcon />
-        </IconButton>
         <CssBaseline />
         {/* The implementation can be swapped with js to avoid SEO duplication of links. */}
         <SwipeableDrawer
@@ -149,95 +147,6 @@ class ResponsiveDrawer extends React.Component {
           open={!app.follow}
         >
           {drawer}
-        </SwipeableDrawer>
-        <SwipeableDrawer
-          className={classes.drawer}
-          variant="persistent"
-          anchor="right"
-          open={open}
-          classes={{
-            paper: classes.drawerPaper,
-          }}
-        >
-          <div className={classes.drawerHeader}>
-            <IconButton onClick={this.handleDrawerClose}>
-              <ChevronRightIcon />
-            </IconButton>
-          </div>
-          <Divider />
-          <div className={classes.optionsForm}>
-            <FormLabel component="legend">Options</FormLabel>
-            <FormGroup>
-              <FormControlLabel
-                control={(<Checkbox color="primary" />)}
-                label="Show resolution"
-                checked={options.showResolution}
-                onChange={(e) => { setOption('showResolution', e.target.checked); }}
-              />
-              <FormControlLabel
-                control={(<Checkbox color="primary" />)}
-                label="Show full data"
-                checked={options.showFull}
-                onChange={(e) => { setOption('showFull', e.target.checked); }}
-              />
-            </FormGroup>
-          </div>
-          <Divider />
-          <div className={classes.optionsForm}>
-            <FormControl className={classes.formControl}>
-              <InputLabel htmlFor="age-native-simple">Colormap</InputLabel>
-              <Select
-                native
-                value={options.currentCmap}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  window.twoDImageView.setColormap(val);
-                  setOption('currentCmap', val);
-                }}
-                inputProps={{
-                  name: 'Colormap',
-                  id: 'cmap',
-                }}
-              >
-                {Object.keys(options.availableCmaps).map(cmapName => (
-                  (<option value={options.availableCmaps[cmapName]}>{cmapName}</option>)
-                ))
-                }
-              </Select>
-            </FormControl>
-          </div>
-          <div className={classes.optionsForm} style={{ height: '30em' }}>
-            <Typography id="range-slider" gutterBottom>
-              Value range
-            </Typography>
-            <Slider
-              orientation="vertical"
-              value={options.valueRange}
-              min={options.valueRangeLimit[0]}
-              max={options.valueRangeLimit[1]}
-              marks={[
-                {
-                  value: options.valueRangeLimit[0],
-                  label: `min ${options.valueRangeLimit[0]}`,
-                },
-                {
-                  value: options.valueRangeLimit[2],
-                  label: `mean ${options.valueRangeLimit[2]}`,
-                },
-                {
-                  value: options.valueRangeLimit[1],
-                  label: `max ${options.valueRangeLimit[1]}`,
-                },
-              ]}
-              step={1}
-              onChange={(e, value) => {
-                window.twoDImageView.setValueRange(value[0], value[1]);
-                setOption('valueRange', value);
-              }}
-              valueLabelDisplay="auto"
-              aria-labelledby="range-slider"
-            />
-          </div>
         </SwipeableDrawer>
         <Snackbar
           className={classes.snackBar}
@@ -255,7 +164,9 @@ class ResponsiveDrawer extends React.Component {
         />
         <main className={classes.content}>
           <div className={classes.imageViewContainer}>
-            <ImageView />
+            <ReactImageView
+              currentImage={currentImagePath}
+            />
           </div>
         </main>
       </div>

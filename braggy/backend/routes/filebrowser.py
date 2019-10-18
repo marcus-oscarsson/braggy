@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 from fastapi import APIRouter
 
-from braggy.backend.lib import filebrowser
+from braggy.backend.app import App
 from braggy.backend.models import DirList, FilePath
 
 router = APIRouter()
@@ -27,9 +27,9 @@ class FileBrowser():
         )
 
     async def _post_list_dir(self, path: FilePath):
-        content = {"items": filebrowser.list_dir(path.path)}
+        content = {"items": App().file_browser.list_dir(path.path)}
         return content
 
     async def _get_list_dir(self):
-        content = {"items": filebrowser.list_dir("")}
+        content = {"items": App().file_browser.list_dir("")}
         return content

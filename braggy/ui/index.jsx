@@ -7,7 +7,8 @@ import store, { history } from 'app/redux-store';
 import Main from 'views/main/Main';
 import * as serviceWorker from 'serviceWorker';
 import initApp from 'app/utils/utils';
-import 'index.css';
+import 'index.scss';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 initApp(store);
 

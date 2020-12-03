@@ -1,0 +1,17 @@
+name: braggy
+dependencies:
+  - pydantic
+  - aiohttp
+  - aiofiles
+  - pillow
+  - python-socketio
+  - h5py
+  - lz4
+  - uvloop
+  - pip
+
+  - pip:
+     - starlette
+     - fabio
+     - fastapi
+

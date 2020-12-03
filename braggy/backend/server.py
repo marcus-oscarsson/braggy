@@ -4,6 +4,8 @@ import socketio
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from starlette.staticfiles import StaticFiles
 
 from braggy.backend.app import App
@@ -16,12 +18,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('braggy')
 logger.setLevel(logging.DEBUG)
 
+
 def init_server():
     static_files = os.path.abspath(os.path.join(
         os.path.dirname(os.path.realpath(__file__)), "../static/"))
 
     app = FastAPI(debug=True)
- 
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     fb = FileBrowser()
     imr = ImageReader()
 
@@ -30,7 +41,7 @@ def init_server():
 
     app.mount("/", StaticFiles(directory=static_files, html=True))
 
-    sio = socketio.AsyncServer(async_mode='asgi')
+    sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
     sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 
     sio.register_namespace(ws.ConnectNS('/'))

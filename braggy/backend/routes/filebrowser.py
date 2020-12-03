@@ -4,8 +4,6 @@ from fastapi import APIRouter
 from braggy.backend.app import App
 from braggy.backend.models import DirList, FilePath
 
-router = APIRouter()
-
 class FileBrowser():
     def __init__(self):
         self.router = APIRouter()
